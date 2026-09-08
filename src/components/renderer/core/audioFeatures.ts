@@ -21,6 +21,11 @@ export type AudioFeatures = {
 	spectralCentroid: number;
 	tempo: number;
 	energyTime: number;
+	valence: number;
+	energy: number;
+	danceability: number;
+	isMajorKey: boolean;
+	sectionLoudnessNorm: number;
 };
 
 export function getThemeColor(color: any): { css: string; r: number; g: number; b: number } {
@@ -214,6 +219,40 @@ export function extractAudioFeatures(
 		} catch {}
 	}
 
+	// 4. Analyse des sections structurelles et humeur musicale (Valence / Énergie)
+	const trackLoudness = Number.isFinite(analysis?.track?.loudness) ? analysis!.track.loudness : -10;
+	const trackMode = analysis?.track?.mode ?? 1;
+
+	let currentSection: any = null;
+	if (analysis?.sections && analysis.sections.length > 0) {
+		const secIndex = Math.max(
+			0,
+			Math.min(
+				analysis.sections.length - 1,
+				binarySearchIndex(analysis.sections, s => s.start, safeProgress)
+			)
+		);
+		currentSection = analysis.sections[secIndex];
+	}
+
+	const secLoudness = Number.isFinite(currentSection?.loudness) ? currentSection.loudness : trackLoudness;
+	// Normalisation de la sonie de la section (-24 dB calme -> -4 dB puissant)
+	const sectionLoudnessNorm = Math.max(0, Math.min(1, (secLoudness + 24) / 20));
+
+	const activeMode = currentSection?.mode ?? trackMode;
+	const isMajorKey = activeMode === 1;
+
+	// Énergie globale dynamique combinant la section structurelle et le volume instantané
+	const energy = Math.max(0.1, Math.min(1.0, sectionLoudnessNorm * 0.55 + amplitude * 0.45));
+
+	// Valence émotionnelle : mode majeur = radieux / solaire (~0.7), mode mineur = mystique / mélancolique (~0.32)
+	const baseValence = isMajorKey ? 0.68 : 0.32;
+	const valence = Math.max(0.05, Math.min(0.98, baseValence + (energy - 0.5) * 0.25));
+
+	// Danceability estimée à partir de la cadence tempo et de la clarté des temps
+	const tempoFit = 1 - Math.min(1, Math.abs(tempo - 122) / 65);
+	const danceability = Math.max(0.15, Math.min(0.95, 0.4 + tempoFit * 0.35 + (analysis?.beats?.length ? 0.2 : 0)));
+
 	return {
 		amplitude,
 		smoothAmp,
@@ -227,6 +266,11 @@ export function extractAudioFeatures(
 		punch,
 		spectralCentroid,
 		tempo,
-		energyTime
+		energyTime,
+		valence,
+		energy,
+		danceability,
+		isMajorKey,
+		sectionLoudnessNorm
 	};
 }

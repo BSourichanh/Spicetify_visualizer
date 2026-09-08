@@ -65,7 +65,7 @@ export default function HexGridVisualizer(props: RendererProps) {
 
 			// Palette strictement basée sur le thème
 			const colorInfo = getThemeColor(data.themeColor);
-			const palette = getThemePalette(colorInfo, bassEnergy, punch);
+			const palette = getThemePalette(colorInfo, bassEnergy, punch, features.valence, features.energy);
 
 			// Dessin des Biocellules Luminescentes
 			drawBioluminescentBiocells(ctx, width, height, energyTime, bassEnergy, palette);

@@ -65,7 +65,7 @@ export default function NeonWavesVisualizer(props: RendererProps) {
 
 			// Palette strictement basée sur le thème
 			const colorInfo = getThemeColor(data.themeColor);
-			const palette = getThemePalette(colorInfo, bassEnergy, punch);
+			const palette = getThemePalette(colorInfo, bassEnergy, punch, features.valence, features.energy);
 
 			// Dessin de la Nébuleuse Cosmique
 			drawCosmicNebula(ctx, width, height, energyTime, bassEnergy, midEnergy, palette);

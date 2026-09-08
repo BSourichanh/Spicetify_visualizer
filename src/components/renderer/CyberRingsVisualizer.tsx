@@ -66,7 +66,7 @@ export default function CyberRingsVisualizer(props: RendererProps) {
 
 			// Palette strictement mono-teinte issue du thème
 			const colorInfo = getThemeColor(data.themeColor);
-			const palette = getThemePalette(colorInfo, bassEnergy, punch);
+			const palette = getThemePalette(colorInfo, bassEnergy, punch, features.valence, features.energy);
 
 			const { cx, cy } = getVisualizerCenter(ctx);
 			const baseRadius = Math.min(width * 0.24, height * 0.22);

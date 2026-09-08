@@ -65,7 +65,7 @@ export default function DnaHelixVisualizer(props: RendererProps) {
 
 			// Palette strictement basée sur le thème
 			const colorInfo = getThemeColor(data.themeColor);
-			const palette = getThemePalette(colorInfo, bassEnergy, punch);
+			const palette = getThemePalette(colorInfo, bassEnergy, punch, features.valence, features.energy);
 
 			// Dessin de la Double Hélice de Soie
 			drawFluidSilkHelix(ctx, width, height, energyTime, bassEnergy, midEnergy, palette);
