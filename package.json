@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "apply": "npm run build && npm run build-local && spicetify apply",
+    "deploy": "npm run build && npm run build-local && spicetify apply",
     "discover": "node scripts/discover-modes.js",
     "prebuild": "node scripts/discover-modes.js",
     "build": "spicetify-creator",
