@@ -8,33 +8,13 @@ import { RendererDefinition } from "../../defs";
 import { createCanvasVisualizer, ModeConfig } from "./createCanvasVisualizer";
 
 import { modeConfig as mode_0_astralLotus } from "./modes/astralLotus";
-import { modeConfig as mode_1_astralPrism } from "./modes/astralPrism";
-import { modeConfig as mode_2_bioluminescentBiocells } from "./modes/bioluminescentBiocells";
-import { modeConfig as mode_3_bioluminescentJellyfish } from "./modes/bioluminescentJellyfish";
-import { modeConfig as mode_4_bioluminescentWaterdrop } from "./modes/bioluminescentWaterdrop";
-import { modeConfig as mode_5_blackHoleAccretion } from "./modes/blackHoleAccretion";
-import { modeConfig as mode_6_celestialAurora } from "./modes/celestialAurora";
-import { modeConfig as mode_7_cosmicNebula } from "./modes/cosmicNebula";
-import { modeConfig as mode_8_fluidSilkHelix } from "./modes/fluidSilkHelix";
-import { modeConfig as mode_9_harmonicSilkWaves } from "./modes/harmonicSilkWaves";
-import { modeConfig as mode_10_saturnCelestialRings } from "./modes/saturnCelestialRings";
-import { modeConfig as mode_11_solarCoronaEclipse } from "./modes/solarCoronaEclipse";
-import { modeConfig as mode_12_spiralGalaxy } from "./modes/spiralGalaxy";
+import { modeConfig as mode_1_bioluminescentJellyfish } from "./modes/bioluminescentJellyfish";
+import { modeConfig as mode_2_cosmicNebula } from "./modes/cosmicNebula";
 
 export const ACTIVE_MODES: ModeConfig[] = [
 	mode_0_astralLotus,
-	mode_1_astralPrism,
-	mode_2_bioluminescentBiocells,
-	mode_3_bioluminescentJellyfish,
-	mode_4_bioluminescentWaterdrop,
-	mode_5_blackHoleAccretion,
-	mode_6_celestialAurora,
-	mode_7_cosmicNebula,
-	mode_8_fluidSilkHelix,
-	mode_9_harmonicSilkWaves,
-	mode_10_saturnCelestialRings,
-	mode_11_solarCoronaEclipse,
-	mode_12_spiralGalaxy
+	mode_1_bioluminescentJellyfish,
+	mode_2_cosmicNebula
 ];
 
 export const GENERATED_RENDERERS: Record<string, RendererDefinition> = {};

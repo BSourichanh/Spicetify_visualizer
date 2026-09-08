@@ -18,6 +18,7 @@ type MainMenuProps = {
 	onEnterFullscreen: () => void;
 	onExitFullscreen: () => void;
 	onOpenWindow: () => void;
+	onOpenSettings: () => void;
 };
 
 const MainMenu = React.memo((props: MainMenuProps) => (
@@ -43,6 +44,12 @@ const MainMenu = React.memo((props: MainMenuProps) => (
 			trailingIcon={<SpotifyIcon name={props.isFullscreen ? "minimize" : "fullscreen"} size={16} />}
 		>
 			{props.isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+		</Spicetify.ReactComponent.MenuItem>
+		<Spicetify.ReactComponent.MenuItem
+			onClick={() => props.onOpenSettings()}
+			trailingIcon={<SpotifyIcon name="edit" size={16} />}
+		>
+			Settings
 		</Spicetify.ReactComponent.MenuItem>
 		<Spicetify.ReactComponent.MenuItem
 			onClick={() => props.onOpenWindow()}

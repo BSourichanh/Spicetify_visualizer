@@ -3,9 +3,16 @@ import AnimatedCanvas from "../AnimatedCanvas";
 import { ErrorHandlerContext, ErrorRecovery } from "../../error";
 import { RendererProps } from "../../defs";
 import { AudioSyncManager } from "../../audio-sync";
-import { buildAmplitudeCurve, extractAudioFeatures, getThemeColor, getThemePalette } from "./visualizerUtils";
+import {
+	buildAmplitudeCurve,
+	extractAudioFeatures,
+	getThemeColor,
+	getThemePalette,
+	getVisualizerCenter
+} from "./visualizerUtils";
 import { AudioFeatures } from "./core/audioFeatures";
 import { ThemePalette } from "./core/palette";
+import { getVisualizerSettings } from "../../settings/settingsManager";
 
 export type ModeRenderFunction = (
 	ctx: CanvasRenderingContext2D,
@@ -73,14 +80,43 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					ctx.clearRect(0, 0, width, height);
 
 					const progress = AudioSyncManager.getProgress();
-					const features = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
-					const { bassEnergy, punch, valence, energy } = features;
+					const settings = getVisualizerSettings();
 
-					// Palette strictement basée sur le thème
-					const colorInfo = getThemeColor(data.themeColor);
-					const palette = getThemePalette(colorInfo, bassEnergy, punch, valence, energy);
+					const rawFeatures = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
+					const bassEnergy = Math.max(0.05, Math.min(1.0, rawFeatures.bassEnergy * settings.punchScale));
+					const punch = Math.max(0, Math.min(1.0, rawFeatures.punch * settings.punchScale));
+					const energyTime = rawFeatures.energyTime * settings.speedScale;
+
+					const features: AudioFeatures = {
+						...rawFeatures,
+						bassEnergy,
+						punch,
+						energyTime
+					};
+
+					// Palette : couleur de l'album ou couleur personnalisée
+					const activeColor = settings.colorMode === "custom" ? settings.customColor : data.themeColor;
+					const colorInfo = getThemeColor(activeColor);
+					const palette = getThemePalette(
+						colorInfo,
+						bassEnergy,
+						punch,
+						features.valence,
+						features.energy,
+						settings.glowScale
+					);
+
+					// Échelle du visuel centrée optiquement
+					ctx.save();
+					if (settings.sizeScale !== 1.0) {
+						const { cx, cy } = getVisualizerCenter(ctx);
+						ctx.translate(cx, cy);
+						ctx.scale(settings.sizeScale, settings.sizeScale);
+						ctx.translate(-cx, -cy);
+					}
 
 					render(ctx, width, height, features, palette);
+					ctx.restore();
 				} catch (err) {
 					console.error(`[Visualizer] ${modeName} render error:`, err);
 				}

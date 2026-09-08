@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ReactDOM from "react-dom";
 import styles from "./css/app.module.scss";
 import LoadingIcon from "./components/LoadingIcon";
+import SettingsModal from "./components/SettingsModal";
 import { ErrorData, ErrorHandlerContext, ErrorRecovery } from "./error";
 import { MainMenuButton } from "./menu";
 import { createVisualizerWindow } from "./window";
@@ -75,6 +76,22 @@ export default function App(props: {
 	useEffect(() => {
 		AudioSyncManager.addReference();
 		return AudioSyncManager.removeReference.bind(AudioSyncManager);
+	}, []);
+
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+				return;
+			}
+			if (e.key === "o" || e.key === "O") {
+				setIsSettingsOpen(prev => !prev);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, []);
 
 	const [state, setState] = useState<VisualizerState>({ state: "loading" });
@@ -196,6 +213,7 @@ export default function App(props: {
 							containerRef.current?.ownerDocument.exitFullscreen();
 						}}
 						onOpenWindow={() => createVisualizerWindow(rendererId)}
+						onOpenSettings={() => setIsSettingsOpen(true)}
 						onSelectRenderer={id => {
 							setRendererId(id);
 							try {
@@ -203,6 +221,7 @@ export default function App(props: {
 							} catch {}
 						}}
 					/>
+					<SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 				</>
 			)}
 

@@ -29,7 +29,8 @@ export function getThemePalette(
 	bassEnergy = 0,
 	punch = 0,
 	valence = 0.5,
-	energy = 0.5
+	energy = 0.5,
+	glowScale = 1.0
 ): ThemePalette {
 	const r = color?.r ?? 180;
 	const g = color?.g ?? 180;
@@ -39,7 +40,10 @@ export function getThemePalette(
 	const effectivePunch = Math.max(punch, bassEnergy > 0.55 ? (bassEnergy - 0.55) * 1.6 : 0);
 	// Si valence élevée (mode majeur / radieux), on amplifie la luminosité et la clarté solaire
 	const moodBrightness = (valence - 0.5) * 0.18 + (energy - 0.5) * 0.12;
-	const flash = Math.max(0, Math.min(1, effectivePunch * 0.8 + bassEnergy * 0.45 + Math.max(0, moodBrightness)));
+	const flash = Math.max(
+		0,
+		Math.min(1, (effectivePunch * 0.8 + bassEnergy * 0.45 + Math.max(0, moodBrightness)) * Math.min(1.5, glowScale))
+	);
 
 	const hr = Math.min(255, Math.round(r + (255 - r) * flash * 0.95));
 	const hg = Math.min(255, Math.round(g + (255 - g) * flash * 0.95));
@@ -56,9 +60,10 @@ export function getThemePalette(
 		valence,
 		energy,
 		solid: `rgb(${r}, ${g}, ${b})`,
-		glow: `rgba(${r}, ${g}, ${b}, ${Math.min(1, 0.4 + bassEnergy * 0.45 + effectivePunch * 0.35 + (energy - 0.5) * 0.15)})`,
+		glow: `rgba(${r}, ${g}, ${b}, ${Math.min(1, Math.max(0, (0.4 + bassEnergy * 0.45 + effectivePunch * 0.35 + (energy - 0.5) * 0.15) * glowScale))})`,
 		highlight: `rgb(${hr}, ${hg}, ${hb})`,
-		veil: (alpha: number) => `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha * veilDepthFactor))})`,
+		veil: (alpha: number) =>
+			`rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha * veilDepthFactor * Math.min(1.4, glowScale)))})`,
 		radialGrad: (
 			ctx: CanvasRenderingContext2D,
 			cx: number,
