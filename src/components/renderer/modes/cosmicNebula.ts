@@ -108,7 +108,7 @@ export function drawCosmicNebula(
 
 export const modeConfig: ModeConfig = {
 	id: "neon-waves",
-	name: "🌌 Nébuleuse Cosmique (Nebula)",
+	name: "🌌 Cosmic Nebula",
 	render(ctx, width, height, features, palette) {
 		drawCosmicNebula(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
 	}

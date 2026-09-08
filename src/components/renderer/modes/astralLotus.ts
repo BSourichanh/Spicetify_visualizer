@@ -143,7 +143,7 @@ export function drawAstralLotus(
 
 export const modeConfig: ModeConfig = {
 	id: "kaleido",
-	name: "🌸 Lotus Astral (Astral Blossom)",
+	name: "🌸 Lotus Flower",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.36;

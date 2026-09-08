@@ -165,7 +165,7 @@ export function drawSolarCoronaEclipse(
 
 export const modeConfig: ModeConfig = {
 	id: "solar-flare",
-	name: "☀️ Éclipse Stellaire & Couronne",
+	name: "☀️ Solar Eclipse",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.3;

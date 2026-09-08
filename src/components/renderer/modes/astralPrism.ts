@@ -196,7 +196,7 @@ export function drawAstralPrism(
 
 export const modeConfig: ModeConfig = {
 	id: "polyhedra",
-	name: "💎 Cristal Astral Diaphane",
+	name: "💎 3D Crystal",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const size = Math.min(width, height) * 0.28;

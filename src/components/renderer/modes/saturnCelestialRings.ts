@@ -215,7 +215,7 @@ function drawRingSystem(
 
 export const modeConfig: ModeConfig = {
 	id: "lissajous",
-	name: "🪐 Anneaux Célestes de Saturne",
+	name: "🪐 Saturn Rings",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.32;

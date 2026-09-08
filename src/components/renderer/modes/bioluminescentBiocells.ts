@@ -150,7 +150,7 @@ export function drawBioluminescentBiocells(
 
 export const modeConfig: ModeConfig = {
 	id: "hex-grid",
-	name: "🔬 Biocellules Luminescentes",
+	name: "💮 Sacred Mandala",
 	render(ctx, width, height, features, palette) {
 		drawBioluminescentBiocells(ctx, width, height, features.energyTime, features.bassEnergy, palette);
 	}

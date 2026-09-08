@@ -123,7 +123,7 @@ export function drawBioluminescentWaterdrop(
 
 export const modeConfig: ModeConfig = {
 	id: "liquid-blob",
-	name: "💧 Goutte d'Aura Abyssale",
+	name: "💧 Liquid Drop",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.28;

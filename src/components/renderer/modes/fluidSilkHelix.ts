@@ -122,7 +122,7 @@ export function drawFluidSilkHelix(
 
 export const modeConfig: ModeConfig = {
 	id: "dna-helix",
-	name: "🧬 Double Hélice de Soie",
+	name: "🧬 DNA Helix",
 	render(ctx, width, height, features, palette) {
 		drawFluidSilkHelix(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
 	}

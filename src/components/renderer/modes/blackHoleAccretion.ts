@@ -204,7 +204,7 @@ export function drawBlackHoleAccretion(
 
 export const modeConfig: ModeConfig = {
 	id: "neon-tunnel",
-	name: "🕳️ Trou Noir & Accrétion (Singularity)",
+	name: "🕳️ Black Hole",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.32;

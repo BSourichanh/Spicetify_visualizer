@@ -248,7 +248,7 @@ export function drawBioluminescentJellyfish(
 
 export const modeConfig: ModeConfig = {
 	id: "cyber-rings",
-	name: "🪼 Méduse Céleste (Jellyfish)",
+	name: "🪼 Jellyfish",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const baseRadius = Math.min(width * 0.24, height * 0.22);

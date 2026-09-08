@@ -84,7 +84,7 @@ export function drawCelestialAurora(
 
 export const modeConfig: ModeConfig = {
 	id: "cyber-rain",
-	name: "✨ Aurore Boréale (Aurora)",
+	name: "✨ Aurora Borealis",
 	render(ctx, width, height, features, palette) {
 		drawCelestialAurora(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
 	}

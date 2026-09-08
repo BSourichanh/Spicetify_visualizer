@@ -43,23 +43,23 @@ export type RendererDefinition = {
 
 export const RENDERERS: Record<string, RendererDefinition> = {
 	random: {
-		name: "🔀 Mode Aléatoire (Random)",
+		name: "🔀 Random",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: RandomVisualizer
 	},
 	...GENERATED_RENDERERS,
 	ncs: {
-		name: "NCS",
+		name: "⚡ NCS",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: NCSVisualizer
 	},
 	spectrum: {
-		name: "Spectrum (very WIP)",
+		name: "📊 Spectrum",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: SpectrumVisualizer
 	},
 	debug: {
-		name: "DEBUG",
+		name: "🛠️ Debug",
 		requiredAudioData: ["audioAnalysis", "beats", "threebandWaveforms", "vocalActivity"],
 		renderer: DebugVisualizer
 	}

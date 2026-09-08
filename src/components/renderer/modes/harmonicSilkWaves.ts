@@ -92,7 +92,7 @@ export function drawHarmonicSilkWaves(
 
 export const modeConfig: ModeConfig = {
 	id: "harmonic-strings",
-	name: "🎵 Harpe de Soie Céleste",
+	name: "🌊 Sound Waves",
 	render(ctx, width, height, features, palette) {
 		drawHarmonicSilkWaves(
 			ctx,

@@ -136,7 +136,7 @@ export function drawSpiralGalaxy(
 
 export const modeConfig: ModeConfig = {
 	id: "starfield",
-	name: "🌀 Galaxie Spirale (Spiral Galaxy)",
+	name: "🌀 Spiral Galaxy",
 	render(ctx, width, height, features, palette) {
 		const { cx, cy } = getVisualizerCenter(ctx);
 		const radius = Math.min(width, height) * 0.44;
