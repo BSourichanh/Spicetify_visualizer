@@ -89,7 +89,7 @@ export default function NCSVisualizer(props: RendererProps) {
 	const audioAnalysis = useMemo(() => {
 		const result = props.trackData.audioAnalysis;
 
-		if (result?.error) onError(result.error, ErrorRecovery.MANUAL);
+		if (result?.error) console.warn("[Visualizer] NCS:", result.error);
 		return result?.value;
 	}, [props.trackData.audioAnalysis]);
 

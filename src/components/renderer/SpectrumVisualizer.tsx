@@ -6,9 +6,20 @@ import { ErrorHandlerContext, ErrorRecovery } from "../../error";
 import { DEFAULT_COLOR, RendererProps } from "../../defs";
 import { AudioSyncManager } from "../../audio-sync";
 
+import {
+	buildAmplitudeCurve,
+	drawBassBloom,
+	drawPolygon,
+	extractAudioFeatures,
+	getLuminousColor,
+	getThemeColor
+} from "./visualizerUtils";
+
 type CanvasData = {
 	themeColor: Spicetify.Color;
 	spectrumData: { x: number; y: number }[][];
+	audioAnalysis?: SpotifyAudioAnalysis;
+	amplitudeCurve: CurveEntry[];
 };
 
 type RendererState =
@@ -28,6 +39,10 @@ export default function SpectrumVisualizer(props: RendererProps) {
 		if (result?.error) onError(result.error, ErrorRecovery.MANUAL);
 		return result?.value;
 	}, [props.trackData.audioAnalysis]);
+
+	const amplitudeCurve = useMemo(() => {
+		return buildAmplitudeCurve(audioAnalysis);
+	}, [audioAnalysis]);
 
 	const spectrumData = useMemo(() => {
 		if (!audioAnalysis) return [];
@@ -165,14 +180,38 @@ export default function SpectrumVisualizer(props: RendererProps) {
 	const onRender = useCallback((ctx: CanvasRenderingContext2D | null, data: CanvasData, state: RendererState) => {
 		if (state.isError || !ctx) return;
 
+		const { width, height } = ctx.canvas;
+		if (width <= 0 || height <= 0) return;
+
+		ctx.clearRect(0, 0, width, height);
+
 		const progress = AudioSyncManager.getProgress();
-		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-		ctx.fillStyle = data.themeColor.toCSS(Spicetify.Color.CSSFormat.HEX);
+		const features = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
+		const { bassEnergy, midEnergy, trebleEnergy, vocalEnergy, transientEnergy } = features;
+
+		const colorInfo = getThemeColor(data.themeColor);
+		const luminous = getLuminousColor(colorInfo, bassEnergy);
+		const baseColor = luminous.css;
+		const glowColor = luminous.glowCss;
+
+		const idleTime = performance.now() * 0.001;
+
+		// Bottom bass bloom halo
+		drawBassBloom(ctx, width * 0.5, height, Math.max(width * 0.5, height * 0.6), colorInfo, bassEnergy);
 
 		const barCount = data.spectrumData.length;
-		const barWidth = (ctx.canvas.width / barCount) * 0.7;
-		const spaceWidth = (ctx.canvas.width - barWidth * barCount) / (barCount + 1);
+		if (barCount === 0) return;
 
+		const barWidth = (width / barCount) * 0.72;
+		const spaceWidth = (width - barWidth * barCount) / (barCount + 1);
+
+		const peakPoints: { x: number; y: number }[] = [];
+
+		ctx.save();
+		ctx.lineCap = "round";
+		ctx.lineJoin = "round";
+
+		// 1. Draw Ethereal Translucent Spectrum Bars
 		for (let i = 0; i < barCount; i++) {
 			const value = sampleSegmentedFunction(
 				data.spectrumData[i],
@@ -181,13 +220,62 @@ export default function SpectrumVisualizer(props: RendererProps) {
 				x => x,
 				progress
 			);
-			ctx.fillRect(
-				spaceWidth * (i + 1) + barWidth * i,
-				ctx.canvas.height - value * ctx.canvas.height,
-				barWidth,
-				value * ctx.canvas.height
-			);
+			const barHeight = value * height * (0.85 + midEnergy * 0.2 + bassEnergy * 0.15);
+			const barX = spaceWidth * (i + 1) + barWidth * i;
+			const barY = height - barHeight;
+
+			peakPoints.push({ x: barX + barWidth * 0.5, y: barY });
+
+			if (barHeight < 2) continue;
+
+			// Translucent gradient fill (ethereal, not solid plastic)
+			const grad = ctx.createLinearGradient(barX, height, barX, barY);
+			grad.addColorStop(0, "transparent");
+			grad.addColorStop(0.3, glowColor);
+			grad.addColorStop(1, baseColor);
+
+			ctx.fillStyle = grad;
+			ctx.globalAlpha = Math.max(0.15, Math.min(0.7, 0.35 + value * 0.45 + vocalEnergy * 0.2));
+			ctx.fillRect(barX, barY, barWidth, barHeight);
+
+			// Delicate 1px wireframe outline
+			ctx.strokeStyle = baseColor;
+			ctx.lineWidth = 0.8;
+			ctx.shadowBlur = 6 + bassEnergy * 18;
+			ctx.shadowColor = glowColor;
+			ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+			// Crown each active bar with a faceted geometric diamond node
+			if (barHeight > 8) {
+				const particleSize = Math.max(1.8, 2.5 + value * 3.5 + trebleEnergy * 2.5);
+				ctx.save();
+				ctx.translate(barX + barWidth * 0.5, barY - 4);
+				ctx.rotate(idleTime + i);
+				drawPolygon(ctx, 0, 0, particleSize, 4, 0);
+				ctx.fillStyle = value > 0.4 ? "#ffffff" : baseColor;
+				ctx.fill();
+				ctx.stroke();
+				ctx.restore();
+			}
 		}
+
+		// 2. Abstract Geometric Constellation Wireframe connecting neighboring peaks
+		ctx.lineWidth = 0.7;
+		ctx.strokeStyle = baseColor;
+		ctx.globalAlpha = 0.12 + midEnergy * 0.22 + transientEnergy * 0.25;
+		ctx.shadowBlur = 8 + trebleEnergy * 16;
+		ctx.shadowColor = glowColor;
+
+		ctx.beginPath();
+		for (let i = 0; i < peakPoints.length - 1; i++) {
+			const p1 = peakPoints[i];
+			const p2 = peakPoints[i + 1];
+			if (i === 0) ctx.moveTo(p1.x, p1.y);
+			ctx.lineTo(p2.x, p2.y);
+		}
+		ctx.stroke();
+
+		ctx.restore();
 	}, []);
 
 	return (
@@ -195,7 +283,9 @@ export default function SpectrumVisualizer(props: RendererProps) {
 			isEnabled={props.isEnabled}
 			data={{
 				themeColor: props.trackData.extractedColor?.value ?? Spicetify.Color.fromHex(DEFAULT_COLOR),
-				spectrumData
+				spectrumData,
+				audioAnalysis,
+				amplitudeCurve
 			}}
 			contextType="2d"
 			onInit={onInit}

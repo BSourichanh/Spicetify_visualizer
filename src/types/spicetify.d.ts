@@ -1829,6 +1829,7 @@ declare namespace Spicetify {
 		 * @see Spicetify.ReactComponent.MenuItemProps
 		 */
 		const MenuItem: any;
+		const MenuSubMenuItem: any;
 		/**
 		 * Tailored ReactComponent.Menu for specific type of object
 		 *

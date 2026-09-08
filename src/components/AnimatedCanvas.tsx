@@ -24,8 +24,10 @@ export default function AnimatedCanvas<T, U, V extends keyof ContextTypeMap>(pro
 	const [state, setState] = useState<U | null>(null);
 
 	const updateResolution = useCallback((canvas: HTMLCanvasElement, win: Window) => {
-		const screenWidth = Math.round(canvas.clientWidth * win.devicePixelRatio);
-		const screenHeight = Math.round(canvas.clientHeight * win.devicePixelRatio);
+		const clientW = canvas.clientWidth || win.innerWidth;
+		const clientH = canvas.clientHeight || win.innerHeight;
+		const screenWidth = Math.round(clientW * win.devicePixelRatio);
+		const screenHeight = Math.round(clientH * win.devicePixelRatio);
 
 		const { width: newWidth, height: newHeight } = props.sizeConstraint?.(screenWidth, screenHeight) ?? {
 			width: screenWidth,
@@ -108,6 +110,12 @@ export default function AnimatedCanvas<T, U, V extends keyof ContextTypeMap>(pro
 		<canvas
 			ref={canvasRef}
 			style={{
+				width: "100vw",
+				height: "100vh",
+				position: "fixed",
+				top: 0,
+				left: 0,
+				pointerEvents: "none",
 				...(style || {}),
 				...(isEnabled ? {} : { visibility: "hidden" })
 			}}

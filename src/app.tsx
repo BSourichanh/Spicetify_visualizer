@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import styles from "./css/app.module.scss";
 import LoadingIcon from "./components/LoadingIcon";
 import { ErrorData, ErrorHandlerContext, ErrorRecovery } from "./error";
@@ -36,14 +37,30 @@ export default function App(props: {
 		const searchRenderer = searchParams.get("renderer");
 		if (searchRenderer && searchRenderer in RENDERERS) return searchRenderer;
 
-		return "ncs";
+		try {
+			const saved = Spicetify.LocalStorage?.get("visualizer:selected-renderer");
+			if (saved && saved in RENDERERS) return saved;
+		} catch {}
+
+		return "cyber-rings";
 	});
 	useEffect(() => {
 		const searchParams = new URLSearchParams();
 		searchParams.set("renderer", rendererId);
 
 		Spicetify.Platform?.History?.replace({ search: searchParams.toString() });
+		try {
+			Spicetify.LocalStorage?.set("visualizer:selected-renderer", rendererId);
+		} catch {}
 	}, [rendererId]);
+
+	useEffect(() => {
+		const searchParams = new URLSearchParams(Spicetify.Platform?.History?.location?.search || "");
+		const searchRenderer = searchParams.get("renderer");
+		if (searchRenderer && searchRenderer in RENDERERS && searchRenderer !== rendererId) {
+			setRendererId(searchRenderer);
+		}
+	}, [Spicetify.Platform?.History?.location?.search]);
 	const Renderer = RENDERERS[rendererId]?.renderer;
 
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -111,7 +128,10 @@ export default function App(props: {
 				for (const [id, value] of Object.entries(oldCache.trackData))
 					if (!value.error) requiredTrackData.delete(id as LoaderID);
 			}
-			if (requiredTrackData.size === 0) return;
+			if (requiredTrackData.size === 0) {
+				updateState({ state: "running" });
+				return;
+			}
 
 			updateState({ state: "loading" });
 
@@ -149,7 +169,7 @@ export default function App(props: {
 		return () => Spicetify.Player.removeEventListener("songchange", songChangeListener as PlayerEventListener);
 	}, [isUnrecoverableError, updatePlayerState, rendererId]);
 
-	return (
+	const content = (
 		<div className={`visualizer-container ${mouseMoved ? styles.mouse_moved : ""}`} ref={containerRef}>
 			{!isUnrecoverableError && (
 				<>
@@ -173,7 +193,12 @@ export default function App(props: {
 							containerRef.current?.ownerDocument.exitFullscreen();
 						}}
 						onOpenWindow={() => createVisualizerWindow(rendererId)}
-						onSelectRenderer={id => setRendererId(id)}
+						onSelectRenderer={id => {
+							setRendererId(id);
+							try {
+								Spicetify.LocalStorage?.set("visualizer:selected-renderer", id);
+							} catch {}
+						}}
 					/>
 				</>
 			)}
@@ -194,4 +219,10 @@ export default function App(props: {
 			) : null}
 		</div>
 	);
+
+	if (typeof document !== "undefined" && document.body) {
+		return ReactDOM.createPortal(content, document.body);
+	}
+
+	return content;
 }
