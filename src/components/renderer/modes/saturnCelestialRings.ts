@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🪐 PLANÈTE AUX ANNEAUX & ASTROLABE CÉLESTE PLEIN ÉCRAN
@@ -210,3 +212,22 @@ function drawRingSystem(
 		}
 	}
 }
+
+export const modeConfig: ModeConfig = {
+	id: "lissajous",
+	name: "🪐 Anneaux Célestes de Saturne",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.32;
+		drawSaturnCelestialRings(
+			ctx,
+			cx,
+			cy,
+			radius,
+			features.energyTime,
+			features.bassEnergy,
+			features.midEnergy,
+			palette
+		);
+	}
+};

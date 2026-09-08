@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🕳️ TROU NOIR & DISQUE D'ACCRÉTION CINÉMATIQUE PLEIN ÉCRAN
@@ -199,3 +201,22 @@ export function drawBlackHoleAccretion(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "neon-tunnel",
+	name: "🕳️ Trou Noir & Accrétion (Singularity)",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.32;
+		drawBlackHoleAccretion(
+			ctx,
+			cx,
+			cy,
+			radius,
+			features.energyTime,
+			features.bassEnergy,
+			features.trebleEnergy,
+			palette
+		);
+	}
+};

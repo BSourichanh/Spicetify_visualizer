@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 💎 LE MONOLITHE CRISTALLIN VIVANT PLEIN ÉCRAN
@@ -191,3 +193,13 @@ export function drawAstralPrism(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "polyhedra",
+	name: "💎 Cristal Astral Diaphane",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const size = Math.min(width, height) * 0.28;
+		drawAstralPrism(ctx, cx, cy, size, features.energyTime, features.bassEnergy, palette);
+	}
+};

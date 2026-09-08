@@ -1,5 +1,6 @@
 import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🌸 LA FLEUR DE VIE & MANDALA ASTRAL PLEIN ÉCRAN
@@ -146,3 +147,11 @@ export function drawBioluminescentBiocells(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "hex-grid",
+	name: "🔬 Biocellules Luminescentes",
+	render(ctx, width, height, features, palette) {
+		drawBioluminescentBiocells(ctx, width, height, features.energyTime, features.bassEnergy, palette);
+	}
+};

@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🌸 LOTUS ASTRAL ÉPANOUI PLEIN ÉCRAN
@@ -138,3 +140,23 @@ export function drawAstralLotus(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "kaleido",
+	name: "🌸 Lotus Astral (Astral Blossom)",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.36;
+		drawAstralLotus(
+			ctx,
+			cx,
+			cy,
+			radius,
+			features.energyTime,
+			0,
+			features.bassEnergy,
+			features.trebleEnergy,
+			palette
+		);
+	}
+};

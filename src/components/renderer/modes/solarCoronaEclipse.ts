@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * ☀️ L'ÉCLIPSE CÉLESTE & COURONNE DU PHÉNIX PLEIN ÉCRAN
@@ -160,3 +162,22 @@ export function drawSolarCoronaEclipse(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "solar-flare",
+	name: "☀️ Éclipse Stellaire & Couronne",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.3;
+		drawSolarCoronaEclipse(
+			ctx,
+			cx,
+			cy,
+			radius,
+			features.energyTime,
+			features.bassEnergy,
+			features.midEnergy,
+			palette
+		);
+	}
+};

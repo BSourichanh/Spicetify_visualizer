@@ -1,5 +1,6 @@
 import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🌌 NÉBULEUSE COSMIQUE INTERSTELLAIRE PLEIN ÉCRAN
@@ -104,3 +105,11 @@ export function drawCosmicNebula(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "neon-waves",
+	name: "🌌 Nébuleuse Cosmique (Nebula)",
+	render(ctx, width, height, features, palette) {
+		drawCosmicNebula(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
+	}
+};

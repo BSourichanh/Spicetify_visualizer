@@ -42,7 +42,10 @@ export default function App(props: {
 			if (saved && saved in RENDERERS) return saved;
 		} catch {}
 
-		return "cyber-rings";
+		const available = Object.keys(RENDERERS);
+		if (available.includes("cyber-rings")) return "cyber-rings";
+		if (available.includes("kaleido")) return "kaleido";
+		return available[0] || "random";
 	});
 	useEffect(() => {
 		const searchParams = new URLSearchParams();

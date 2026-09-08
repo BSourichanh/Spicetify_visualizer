@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "discover": "node scripts/discover-modes.js",
+    "prebuild": "node scripts/discover-modes.js",
     "build": "spicetify-creator",
+    "prebuild-local": "node scripts/discover-modes.js",
     "build-local": "spicetify-creator --out=dist --minify",
+    "prewatch": "node scripts/discover-modes.js",
     "watch": "spicetify-creator --watch",
     "format": "prettier --write src/"
   },

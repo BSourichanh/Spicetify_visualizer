@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🌌 GALAXIE SPIRALE LOGARITHMIQUE PLEIN ÉCRAN
@@ -131,3 +133,13 @@ export function drawSpiralGalaxy(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "starfield",
+	name: "🌀 Galaxie Spirale (Spiral Galaxy)",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.44;
+		drawSpiralGalaxy(ctx, cx, cy, radius, features.energyTime, features.bassEnergy, features.midEnergy, palette);
+	}
+};

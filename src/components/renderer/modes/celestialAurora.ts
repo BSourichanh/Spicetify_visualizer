@@ -1,5 +1,6 @@
 import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🌌 AURORE BORÉALE VIVANTE PLEIN ÉCRAN
@@ -80,3 +81,11 @@ export function drawCelestialAurora(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "cyber-rain",
+	name: "✨ Aurore Boréale (Aurora)",
+	render(ctx, width, height, features, palette) {
+		drawCelestialAurora(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
+	}
+};

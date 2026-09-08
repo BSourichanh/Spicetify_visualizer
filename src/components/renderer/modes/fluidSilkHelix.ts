@@ -1,5 +1,6 @@
 import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🧬 LA SPIRALE VITALE (DOUBLE HÉLICE DE SOIE COSMIQUE) PLEIN ÉCRAN
@@ -118,3 +119,11 @@ export function drawFluidSilkHelix(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "dna-helix",
+	name: "🧬 Double Hélice de Soie",
+	render(ctx, width, height, features, palette) {
+		drawFluidSilkHelix(ctx, width, height, features.energyTime, features.bassEnergy, features.midEnergy, palette);
+	}
+};

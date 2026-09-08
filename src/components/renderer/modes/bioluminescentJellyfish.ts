@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🪼 MÉDUSE BIOLUMINESCENTE CÉLESTE PLEIN ÉCRAN
@@ -243,3 +245,23 @@ export function drawBioluminescentJellyfish(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "cyber-rings",
+	name: "🪼 Méduse Céleste (Jellyfish)",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const baseRadius = Math.min(width * 0.24, height * 0.22);
+		drawBioluminescentJellyfish(
+			ctx,
+			cx,
+			cy,
+			baseRadius,
+			features.energyTime,
+			0,
+			features.bassEnergy,
+			features.trebleEnergy,
+			palette
+		);
+	}
+};

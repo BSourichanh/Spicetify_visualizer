@@ -1,4 +1,6 @@
 import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 💧 GOUTTE D'AURA ABYSSALE VIVANTE PLEIN ÉCRAN
@@ -118,3 +120,22 @@ export function drawBioluminescentWaterdrop(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "liquid-blob",
+	name: "💧 Goutte d'Aura Abyssale",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const radius = Math.min(width, height) * 0.28;
+		drawBioluminescentWaterdrop(
+			ctx,
+			cx,
+			cy,
+			radius,
+			features.energyTime,
+			features.bassEnergy,
+			features.trebleEnergy,
+			palette
+		);
+	}
+};

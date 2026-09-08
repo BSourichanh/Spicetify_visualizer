@@ -1,5 +1,6 @@
 import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
 
 /**
  * 🎵 HARPE DE SOIE CÉLESTE PLEIN ÉCRAN
@@ -88,3 +89,19 @@ export function drawHarmonicSilkWaves(
 
 	ctx.restore();
 }
+
+export const modeConfig: ModeConfig = {
+	id: "harmonic-strings",
+	name: "🎵 Harpe de Soie Céleste",
+	render(ctx, width, height, features, palette) {
+		drawHarmonicSilkWaves(
+			ctx,
+			width,
+			height,
+			features.energyTime,
+			features.bassEnergy,
+			features.midEnergy,
+			palette
+		);
+	}
+};
