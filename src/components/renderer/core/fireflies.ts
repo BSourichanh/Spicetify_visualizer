@@ -76,6 +76,7 @@ export function drawFireflies(
 	const { cx, cy } = getVisualizerCenter(ctx);
 	const maxR = Math.hypot(width, height) * 0.58;
 	const intensitySetting = settings.firefliesIntensity ?? 1.0;
+	const sizeMult = settings.firefliesSize ?? 1.0;
 	const margin = 50;
 
 	ctx.save();
@@ -115,8 +116,8 @@ export function drawFireflies(
 
 		if (totalBrightness <= 0.01) continue;
 
-		// Épanouissement du rayon de la lueur au passage de l'onde
-		const currentRadius = f.baseRadius * (1.0 + f.shockExcitement * 2.4 + features.bassEnergy * 0.25);
+		// Épanouissement du rayon de la lueur au passage de l'onde et selon la taille configurée
+		const currentRadius = f.baseRadius * sizeMult * (1.0 + f.shockExcitement * 2.4 + features.bassEnergy * 0.25);
 
 		// Halo radial néon ultra-doux (zéro boule solide, fondu vers 0 alpha)
 		const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, currentRadius);

@@ -21,5 +21,8 @@ export * from "./core/backgroundShockwave";
 // Bioluminescent Fireflies Ambient Layer
 export * from "./core/fireflies";
 
+// Big Bang Cosmic Origin Ambient & Background Layer
+export * from "./core/cosmicOrigin";
+
 // High-Fidelity Multi-Band Frequency Separation
 export * from "./core/frequencyBands";

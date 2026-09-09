@@ -2,7 +2,7 @@ import { ThemePalette } from "../core/palette";
 import { getVisualizerCenter } from "../core/geometry";
 import { ModeConfig } from "../createCanvasVisualizer";
 import { neonCurrentManager } from "../core/neonCurrent";
-import { getVisualizerSettings } from "../../../settings/settingsManager";
+import { getVisualizerSettings, VisualizerSettings } from "../../../settings/settingsManager";
 import { AudioFeatures } from "../core/audioFeatures";
 
 /**
@@ -131,7 +131,8 @@ export class BigBangPhysicsEngine {
 		punch: number,
 		transient: number,
 		speedScale: number,
-		maxDist: number
+		maxDist: number,
+		settings?: VisualizerSettings
 	): void {
 		if (!isPlaying) {
 			this.smoothPunch *= 0.88;
@@ -146,9 +147,16 @@ export class BigBangPhysicsEngine {
 		this.singularityPulse += 0.03 * speedScale;
 
 		const now = Date.now();
-		const isExplosion = punch > 0.38 || (bass > 0.65 && transient > 0.4);
+		const waveEnabled = settings?.bigBangWaveEnabled ?? true;
+		const threshold = settings?.bigBangWaveThreshold ?? 0.82;
 
-		if (isExplosion && now - this.lastPunchTime > 280) {
+		// Déclenchement réservé exclusivement aux basses très élevées (drops puissants, gros kicks sub-basses)
+		const isHighBassExplosion =
+			(bass >= threshold && punch > 0.42) ||
+			bass >= Math.min(1.0, threshold * 1.1) ||
+			punch >= Math.min(1.0, threshold * 0.95);
+
+		if (waveEnabled && isHighBassExplosion && now - this.lastPunchTime > 320) {
 			this.lastPunchTime = now;
 			this.spawnShockwave(maxDist * 1.3, (14 + punch * 22) * speedScale, 12 + punch * 18);
 		}
@@ -159,7 +167,7 @@ export class BigBangPhysicsEngine {
 		}
 
 		// Mise à jour des graines stellaires
-		const kickBoost = isExplosion ? 3.5 : 1.0;
+		const kickBoost = isHighBassExplosion ? 3.5 : 1.0;
 		for (let i = 0; i < this.stellarSeeds.length; i++) {
 			const seed = this.stellarSeeds[i];
 			seed.dist += seed.radialSpeed * speedScale * kickBoost * (0.8 + this.smoothPunch * 1.2);
@@ -195,6 +203,9 @@ export interface BigBangLayer {
  */
 class InflationWavesLayer implements BigBangLayer {
 	public render(ctx: CanvasRenderingContext2D, frame: BigBangFrameContext, engine: BigBangPhysicsEngine): void {
+		const settings = getVisualizerSettings();
+		if (!settings.bigBangWaveEnabled) return;
+
 		const { cx, cy, palette } = frame;
 
 		for (const wave of engine.shockwaves) {
@@ -517,7 +528,15 @@ export function drawBigBang(
 	const isPlaying = features.isPlaying ?? true;
 	const maxScreenR = Math.sqrt(cx * cx + cy * cy);
 
-	engine.update(isPlaying, features.bassEnergy, features.punch, features.transientEnergy, speedScale, maxScreenR);
+	engine.update(
+		isPlaying,
+		features.bassEnergy,
+		features.punch,
+		features.transientEnergy,
+		speedScale,
+		maxScreenR,
+		settings
+	);
 
 	const frameContext: BigBangFrameContext = {
 		cx,

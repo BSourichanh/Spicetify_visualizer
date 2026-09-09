@@ -26,6 +26,7 @@ export type VisualizerSettings = {
 	shockwaveSpeed: number; // 0.4 to 2.5, default 1.0 (Vitesse d'expansion de l'onde de choc)
 	firefliesEnabled: boolean; // default true (Activer les lucioles bioluminescentes)
 	firefliesIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité lumineuse des lucioles)
+	firefliesSize: number; // 0.3 to 3.0, default 1.0 (Échelle de taille des lucioles)
 	firefliesCount: number; // 10 to 90, default 36 (Nombre/densité de lucioles)
 	firefliesSpeed: number; // 0.2 to 2.5, default 1.0 (Vitesse de dérive des lucioles)
 	lotusRotationScale: number; // 0.2 to 3.0, default 1.0 (Vitesse de rotation de la Fleur de Lotus)
@@ -35,6 +36,12 @@ export type VisualizerSettings = {
 	spectrumShowPeaks: boolean; // default true (Afficher les crêtes de brume flottantes)
 	jellyfishSwimSpeed: number; // 0.4 to 2.5, default 1.0 (Cadence de nage de la Méduse)
 	jellyfishTentacleLength: number; // 0.5 to 1.8, default 1.0 (Longueur des filaments soyeux)
+	bigBangAmbientEnabled: boolean; // default true (Activer l'ambiance cosmique Big Bang en arrière-plan de tous les modèles)
+	bigBangWaveEnabled: boolean; // default true (Activer les ondes de choc d'inflation cosmologique)
+	bigBangWaveThreshold: number; // 0.60 to 0.95, default 0.82 (Seuil de déclenchement : réservé aux basses très élevées)
+	bigBangAmbientIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité de la nébuleuse et des poussières cosmiques)
+	bigBangNebulaEnabled: boolean; // default true (Activer les nuages de gaz primordial en arrière-plan)
+	bigBangStarsEnabled: boolean; // default true (Activer les graines stellaires relativistes)
 	enabledRandomModes: string[]; // Liste des IDs de modes autorisés en mode Aléatoire (vide = tous)
 	enabledChaosModes: string[]; // Liste des IDs de modes autorisés en mode Chaos (vide = tous)
 };
@@ -61,6 +68,7 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	shockwaveSpeed: 1.0,
 	firefliesEnabled: true,
 	firefliesIntensity: 1.0,
+	firefliesSize: 1.0,
 	firefliesCount: 36,
 	firefliesSpeed: 1.0,
 	lotusRotationScale: 1.0,
@@ -70,6 +78,12 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	spectrumShowPeaks: true,
 	jellyfishSwimSpeed: 1.0,
 	jellyfishTentacleLength: 1.0,
+	bigBangAmbientEnabled: true,
+	bigBangWaveEnabled: true,
+	bigBangWaveThreshold: 0.82,
+	bigBangAmbientIntensity: 1.0,
+	bigBangNebulaEnabled: true,
+	bigBangStarsEnabled: true,
 	enabledRandomModes: [],
 	enabledChaosModes: []
 };
@@ -176,6 +190,10 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.firefliesIntensity === "number"
 						? Math.max(0.2, Math.min(2.0, parsed.firefliesIntensity))
 						: DEFAULT_SETTINGS.firefliesIntensity,
+				firefliesSize:
+					typeof parsed.firefliesSize === "number"
+						? Math.max(0.3, Math.min(3.0, parsed.firefliesSize))
+						: DEFAULT_SETTINGS.firefliesSize,
 				firefliesCount:
 					typeof parsed.firefliesCount === "number"
 						? Math.max(10, Math.min(90, Math.round(parsed.firefliesCount)))
@@ -207,6 +225,30 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.jellyfishTentacleLength === "number"
 						? Math.max(0.5, Math.min(1.8, parsed.jellyfishTentacleLength))
 						: DEFAULT_SETTINGS.jellyfishTentacleLength,
+				bigBangAmbientEnabled:
+					typeof parsed.bigBangAmbientEnabled === "boolean"
+						? parsed.bigBangAmbientEnabled
+						: DEFAULT_SETTINGS.bigBangAmbientEnabled,
+				bigBangWaveEnabled:
+					typeof parsed.bigBangWaveEnabled === "boolean"
+						? parsed.bigBangWaveEnabled
+						: DEFAULT_SETTINGS.bigBangWaveEnabled,
+				bigBangWaveThreshold:
+					typeof parsed.bigBangWaveThreshold === "number"
+						? Math.max(0.6, Math.min(0.95, parsed.bigBangWaveThreshold))
+						: DEFAULT_SETTINGS.bigBangWaveThreshold,
+				bigBangAmbientIntensity:
+					typeof parsed.bigBangAmbientIntensity === "number"
+						? Math.max(0.2, Math.min(2.0, parsed.bigBangAmbientIntensity))
+						: DEFAULT_SETTINGS.bigBangAmbientIntensity,
+				bigBangNebulaEnabled:
+					typeof parsed.bigBangNebulaEnabled === "boolean"
+						? parsed.bigBangNebulaEnabled
+						: DEFAULT_SETTINGS.bigBangNebulaEnabled,
+				bigBangStarsEnabled:
+					typeof parsed.bigBangStarsEnabled === "boolean"
+						? parsed.bigBangStarsEnabled
+						: DEFAULT_SETTINGS.bigBangStarsEnabled,
 				enabledRandomModes: Array.isArray(parsed.enabledRandomModes)
 					? parsed.enabledRandomModes.filter((id: unknown) => typeof id === "string")
 					: DEFAULT_SETTINGS.enabledRandomModes,

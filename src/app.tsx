@@ -221,7 +221,11 @@ export default function App(props: {
 							} catch {}
 						}}
 					/>
-					<SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+					<SettingsModal
+						isOpen={isSettingsOpen}
+						onClose={() => setIsSettingsOpen(false)}
+						currentRendererId={rendererId}
+					/>
 				</>
 			)}
 

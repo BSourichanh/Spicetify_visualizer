@@ -6,6 +6,7 @@ import { AudioSyncManager } from "../../audio-sync";
 import {
 	buildAmplitudeCurve,
 	drawBackgroundShockwave,
+	drawBigBangAmbient,
 	drawFireflies,
 	extractAudioFeatures,
 	getThemeColor,
@@ -164,7 +165,12 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					// 2. Lucioles bioluminescentes flottantes (sursaut d'intensité au passage de l'onde)
 					drawFireflies(ctx, width, height, features, palette, settings);
 
-					// 3. Mise à jour de la propagation du courant néon à travers le modèle
+					// 3. Ambiance & Arrière-plan Big Bang Cosmic Origin (onde d'inflation, nébuleuse, poussière cosmique)
+					if (settings.bigBangAmbientEnabled && modeName !== "💥 Big Bang") {
+						drawBigBangAmbient(ctx, width, height, features, palette, settings);
+					}
+
+					// 4. Mise à jour de la propagation du courant néon à travers le modèle
 					neonCurrentManager.update(features, settings);
 
 					// 4. Échelle du visuel centrée optiquement (Modèle en premier plan)
