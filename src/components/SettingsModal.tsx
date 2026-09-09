@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom";
 import styles from "../settings/settings.module.scss";
 import {
 	DEFAULT_SETTINGS,
@@ -52,6 +53,12 @@ export default function SettingsModal(props: SettingsModalProps) {
 		setSettings({ ...updated });
 	};
 
+	const handleToggleChange = (key: keyof VisualizerSettings) => {
+		const current = Boolean(settings[key]);
+		const updated = updateVisualizerSettings({ [key]: !current });
+		setSettings({ ...updated });
+	};
+
 	const handleColorModeChange = (mode: "theme" | "custom") => {
 		const updated = updateVisualizerSettings({ colorMode: mode });
 		setSettings({ ...updated });
@@ -67,7 +74,7 @@ export default function SettingsModal(props: SettingsModalProps) {
 		setSettings({ ...reset });
 	};
 
-	return (
+	const modalContent = (
 		<div className={styles.modal_overlay} onClick={props.onClose}>
 			<div className={styles.modal_card} onClick={e => e.stopPropagation()}>
 				<div className={styles.modal_header}>
@@ -147,7 +154,120 @@ export default function SettingsModal(props: SettingsModalProps) {
 					</div>
 				</div>
 
-				{/* 5. Couleur / Palette */}
+				{/* 5. Cycles & Transitions (Random & Chaos) */}
+				<div className={styles.section}>
+					{/* Durée du mode Random */}
+					<div className={styles.control_row}>
+						<div className={styles.control_header}>
+							<span>⏱️ Random Mode Duration</span>
+							<span className={styles.badge}>{settings.randomInterval}s</span>
+						</div>
+						<input
+							type="range"
+							min="5"
+							max="180"
+							step="5"
+							value={settings.randomInterval}
+							className={styles.slider}
+							onChange={e => handleSliderChange("randomInterval", parseInt(e.target.value, 10))}
+						/>
+					</div>
+
+					{/* Cadence du mode Chaos */}
+					<div className={styles.control_row}>
+						<div className={styles.control_header}>
+							<span>💥 Chaos Bass Cadence</span>
+							<span className={styles.badge}>{settings.chaosCooldown.toFixed(1)}s</span>
+						</div>
+						<input
+							type="range"
+							min="0.6"
+							max="5.0"
+							step="0.2"
+							value={settings.chaosCooldown}
+							className={styles.slider}
+							onChange={e => handleSliderChange("chaosCooldown", parseFloat(e.target.value))}
+						/>
+					</div>
+				</div>
+
+				{/* 6. Neon Current Propagation on Bass */}
+				<div className={styles.section}>
+					<div className={styles.control_header}>
+						<span>⚡ Neon Current Propagation on Bass</span>
+						<button
+							className={`${styles.tab_btn} ${settings.neonBassEnabled ? styles.active : ""}`}
+							style={{
+								flex: "none",
+								padding: "4px 14px",
+								fontSize: "0.8rem",
+								borderRadius: "14px",
+								minWidth: "60px"
+							}}
+							onClick={() => handleToggleChange("neonBassEnabled")}
+						>
+							{settings.neonBassEnabled ? "ON" : "OFF"}
+						</button>
+					</div>
+
+					{settings.neonBassEnabled && (
+						<div className={styles.control_row} style={{ marginTop: "10px" }}>
+							<div className={styles.control_header}>
+								<span>🌊 Neon Current Intensity</span>
+								<span className={styles.badge}>{settings.neonBassIntensity.toFixed(2)}x</span>
+							</div>
+							<input
+								type="range"
+								min="0.2"
+								max="2.0"
+								step="0.05"
+								value={settings.neonBassIntensity}
+								className={styles.slider}
+								onChange={e => handleSliderChange("neonBassIntensity", parseFloat(e.target.value))}
+							/>
+						</div>
+					)}
+				</div>
+
+				{/* 7. Background Shockwave on Bass */}
+				<div className={styles.section}>
+					<div className={styles.control_header}>
+						<span>💥 Background Shockwave on Bass</span>
+						<button
+							className={`${styles.tab_btn} ${settings.shockwaveEnabled ? styles.active : ""}`}
+							style={{
+								flex: "none",
+								padding: "4px 14px",
+								fontSize: "0.8rem",
+								borderRadius: "14px",
+								minWidth: "60px"
+							}}
+							onClick={() => handleToggleChange("shockwaveEnabled")}
+						>
+							{settings.shockwaveEnabled ? "ON" : "OFF"}
+						</button>
+					</div>
+
+					{settings.shockwaveEnabled && (
+						<div className={styles.control_row} style={{ marginTop: "10px" }}>
+							<div className={styles.control_header}>
+								<span>⚡ Shockwave Intensity</span>
+								<span className={styles.badge}>{settings.shockwaveIntensity.toFixed(2)}x</span>
+							</div>
+							<input
+								type="range"
+								min="0.2"
+								max="2.0"
+								step="0.05"
+								value={settings.shockwaveIntensity}
+								className={styles.slider}
+								onChange={e => handleSliderChange("shockwaveIntensity", parseFloat(e.target.value))}
+							/>
+						</div>
+					)}
+				</div>
+
+				{/* 8. Couleur / Palette */}
 				<div className={styles.section}>
 					<div className={styles.control_header}>
 						<span>🎨 Color Source</span>
@@ -202,4 +322,10 @@ export default function SettingsModal(props: SettingsModalProps) {
 			</div>
 		</div>
 	);
+
+	if (typeof document !== "undefined" && document.body) {
+		return ReactDOM.createPortal(modalContent, document.body);
+	}
+
+	return modalContent;
 }

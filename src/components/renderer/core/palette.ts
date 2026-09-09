@@ -12,6 +12,8 @@ export type ThemePalette = {
 	solid: string;
 	glow: string;
 	highlight: string;
+	rimLight: string;
+	rimVeil: (alpha: number) => string;
 	veil: (alpha: number) => string;
 	radialGrad: (
 		ctx: CanvasRenderingContext2D,
@@ -49,6 +51,14 @@ export function getThemePalette(
 	const hg = Math.min(255, Math.round(g + (255 - g) * flash * 0.95));
 	const hb = Math.min(255, Math.round(b + (255 - b) * flash * 0.95));
 
+	// Bordures nettement plus claires que l'intérieur (mélange lumineux pour liseré / effet Fresnel)
+	const rimFactor = 0.58 + flash * 0.32;
+	const rimR = Math.min(255, Math.round(r + (255 - r) * rimFactor));
+	const rimG = Math.min(255, Math.round(g + (255 - g) * rimFactor));
+	const rimB = Math.min(255, Math.round(b + (255 - b) * rimFactor));
+	const rimLight = `rgb(${rimR}, ${rimG}, ${rimB})`;
+	const rimVeil = (alpha: number) => `rgba(${rimR}, ${rimG}, ${rimB}, ${Math.max(0, Math.min(1, alpha))})`;
+
 	// Pour les morceaux mélancoliques/mystiques (valence < 0.5), les voiles sont plus profonds et veloutés
 	const veilDepthFactor = valence < 0.5 ? 1.0 + (0.5 - valence) * 0.25 : 1.0;
 
@@ -62,6 +72,8 @@ export function getThemePalette(
 		solid: `rgb(${r}, ${g}, ${b})`,
 		glow: `rgba(${r}, ${g}, ${b}, ${Math.min(1, Math.max(0, (0.4 + bassEnergy * 0.45 + effectivePunch * 0.35 + (energy - 0.5) * 0.15) * glowScale))})`,
 		highlight: `rgb(${hr}, ${hg}, ${hb})`,
+		rimLight,
+		rimVeil,
 		veil: (alpha: number) =>
 			`rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha * veilDepthFactor * Math.min(1.4, glowScale)))})`,
 		radialGrad: (

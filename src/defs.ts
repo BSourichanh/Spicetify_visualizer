@@ -3,6 +3,7 @@ import DebugVisualizer from "./components/renderer/DebugVisualizer";
 import NCSVisualizer from "./components/renderer/NCSVisualizer";
 import SpectrumVisualizer from "./components/renderer/SpectrumVisualizer";
 import RandomVisualizer from "./components/renderer/RandomVisualizer";
+import ChaosVisualizer from "./components/renderer/ChaosVisualizer";
 import { GENERATED_RENDERERS } from "./components/renderer/modes.generated";
 import {
 	loadAudioAnalysis,
@@ -46,6 +47,11 @@ export const RENDERERS: Record<string, RendererDefinition> = {
 		name: "🔀 Random",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: RandomVisualizer
+	},
+	chaos: {
+		name: "💥 Chaos",
+		requiredAudioData: ["audioAnalysis", "extractedColor"],
+		renderer: ChaosVisualizer
 	},
 	...GENERATED_RENDERERS,
 	ncs: {

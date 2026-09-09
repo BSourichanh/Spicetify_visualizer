@@ -11,6 +11,12 @@ export type VisualizerSettings = {
 	sizeScale: number; // 0.5 to 1.6, default 1.0 (Échelle géométrique / Zoom)
 	colorMode: "theme" | "custom"; // "theme" = Album Spotify, "custom" = Couleur fixe
 	customColor: string; // Code HEX (défaut #1db954 vert Spotify)
+	randomInterval: number; // 5 to 300s, default 30 (Durée en secondes en mode Random)
+	chaosCooldown: number; // 0.6 to 6.0s, default 1.8 (Délai minimal en secondes entre deux changements sur les basses)
+	neonBassEnabled: boolean; // default true (Activer le courant néon le long du modèle)
+	neonBassIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité du courant néon)
+	shockwaveEnabled: boolean; // default true (Activer l'onde de choc en arrière-plan)
+	shockwaveIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité de l'onde de choc)
 };
 
 export const DEFAULT_SETTINGS: VisualizerSettings = {
@@ -19,7 +25,13 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	glowScale: 1.0,
 	sizeScale: 1.0,
 	colorMode: "theme",
-	customColor: "#1db954"
+	customColor: "#1db954",
+	randomInterval: 30,
+	chaosCooldown: 1.8,
+	neonBassEnabled: true,
+	neonBassIntensity: 1.0,
+	shockwaveEnabled: true,
+	shockwaveIntensity: 1.0
 };
 
 const STORAGE_KEY = "visualizer:custom-settings";
@@ -63,7 +75,31 @@ export function loadVisualizerSettings(): VisualizerSettings {
 				customColor:
 					typeof parsed.customColor === "string" && parsed.customColor.startsWith("#")
 						? parsed.customColor
-						: DEFAULT_SETTINGS.customColor
+						: DEFAULT_SETTINGS.customColor,
+				randomInterval:
+					typeof parsed.randomInterval === "number"
+						? Math.max(5, Math.min(300, parsed.randomInterval))
+						: DEFAULT_SETTINGS.randomInterval,
+				chaosCooldown:
+					typeof parsed.chaosCooldown === "number"
+						? Math.max(0.6, Math.min(6.0, parsed.chaosCooldown))
+						: DEFAULT_SETTINGS.chaosCooldown,
+				neonBassEnabled:
+					typeof parsed.neonBassEnabled === "boolean"
+						? parsed.neonBassEnabled
+						: DEFAULT_SETTINGS.neonBassEnabled,
+				neonBassIntensity:
+					typeof parsed.neonBassIntensity === "number"
+						? Math.max(0.2, Math.min(2.0, parsed.neonBassIntensity))
+						: DEFAULT_SETTINGS.neonBassIntensity,
+				shockwaveEnabled:
+					typeof parsed.shockwaveEnabled === "boolean"
+						? parsed.shockwaveEnabled
+						: DEFAULT_SETTINGS.shockwaveEnabled,
+				shockwaveIntensity:
+					typeof parsed.shockwaveIntensity === "number"
+						? Math.max(0.2, Math.min(2.0, parsed.shockwaveIntensity))
+						: DEFAULT_SETTINGS.shockwaveIntensity
 			};
 		}
 	} catch (e) {

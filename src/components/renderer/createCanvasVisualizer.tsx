@@ -5,10 +5,12 @@ import { RendererProps } from "../../defs";
 import { AudioSyncManager } from "../../audio-sync";
 import {
 	buildAmplitudeCurve,
+	drawBackgroundShockwave,
 	extractAudioFeatures,
 	getThemeColor,
 	getThemePalette,
-	getVisualizerCenter
+	getVisualizerCenter,
+	neonCurrentManager
 } from "./visualizerUtils";
 import { AudioFeatures } from "./core/audioFeatures";
 import { ThemePalette } from "./core/palette";
@@ -106,7 +108,13 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 						settings.glowScale
 					);
 
-					// Échelle du visuel centrée optiquement
+					// 1. Onde de choc d'arrière-plan sur les basses (rendue derrière le modèle)
+					drawBackgroundShockwave(ctx, width, height, features, palette, settings);
+
+					// 2. Mise à jour de la propagation du courant néon à travers le modèle
+					neonCurrentManager.update(features, settings);
+
+					// 3. Échelle du visuel centrée optiquement (Modèle en premier plan)
 					ctx.save();
 					if (settings.sizeScale !== 1.0) {
 						const { cx, cy } = getVisualizerCenter(ctx);

@@ -11,3 +11,9 @@ export * from "./core/palette";
 
 // Geometry, Viewport Centering & Optical Helpers
 export * from "./core/geometry";
+
+// Neon Current Propagation along Model Geometry
+export * from "./core/neonCurrent";
+
+// Background Volumetric Shockwave
+export * from "./core/backgroundShockwave";

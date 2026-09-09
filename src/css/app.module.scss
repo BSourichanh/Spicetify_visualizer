@@ -28,7 +28,7 @@
 	z-index: 1001 !important;
 }
 
-:global(.visualizer-container) > *:not(.main_menu_button, [data-tippy-root], canvas) {
+:global(.visualizer-container) > *:not(.main_menu_button, [data-tippy-root], canvas, [class*="modal"]) {
 	position: absolute;
 	top: 50%;
 	left: 50%;
