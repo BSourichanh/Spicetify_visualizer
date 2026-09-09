@@ -34,10 +34,10 @@ class PooledShockwave {
 }
 
 class BackgroundShockwaveEngine {
-	private static readonly POOL_SIZE = 3;
+	private static readonly POOL_SIZE = 5;
 	private readonly pool: PooledShockwave[] = [];
 	private lastTriggerTime = 0;
-	private wasBassPeak = false;
+	private prevPunch = 0;
 
 	constructor() {
 		for (let i = 0; i < BackgroundShockwaveEngine.POOL_SIZE; i++) {
@@ -49,21 +49,36 @@ class BackgroundShockwaveEngine {
 		for (let i = 0; i < this.pool.length; i++) {
 			this.pool[i].active = false;
 		}
+		this.prevPunch = 0;
 	}
 
 	public updateAndTrigger(features: AudioFeatures, settings: VisualizerSettings, now: number): void {
 		const intensityMult = settings.shockwaveIntensity ?? 1.0;
-		const bassHit = features.punch * 0.76 + features.bassEnergy * 0.44;
-		const isPeak = (features.punch > 0.32 && features.bassEnergy > 0.25) || features.punch > 0.46;
+		const sensitivity = settings.shockwaveSensitivity ?? 1.0;
 
-		if (isPeak && !this.wasBassPeak && now - this.lastTriggerTime > 260) {
-			const intensity = Math.min(1.0, bassHit) * intensityMult;
-			if (intensity > 0.05) {
+		// Modulation de la détection de crête par la sensibilité aux basses
+		const effectivePunch = features.punch * sensitivity;
+		const effectiveBass = features.bassEnergy * sensitivity;
+		const bassHit = effectivePunch * 0.76 + effectiveBass * 0.44;
+
+		// Détection d'un front d'attaque (kick / percussion) :
+		// Dans les drops, le sub-bass est continu (>0.6), mais chaque kick crée une impulsion de punch
+		const isKickAttack = effectivePunch > 0.26 && (effectivePunch > this.prevPunch + 0.04 || effectivePunch > 0.42);
+		const isBassDropImpact = bassHit > 0.48 && effectivePunch > 0.22;
+
+		const cooldown = Math.max(160, Math.round(250 / Math.min(1.6, Math.max(0.6, sensitivity))));
+
+		if ((isKickAttack || isBassDropImpact) && now - this.lastTriggerTime > cooldown) {
+			// En plein drop (sub-bass lourd), amplifier l'onde de choc pour un impact visuel colossal
+			const dropBoost = features.bassEnergy > 0.55 ? 1.25 : 1.0;
+			const intensity = Math.min(1.2, bassHit * dropBoost) * intensityMult;
+			if (intensity > 0.04) {
 				this.spawnWave(now, intensity, settings);
 				this.lastTriggerTime = now;
 			}
 		}
-		this.wasBassPeak = isPeak;
+
+		this.prevPunch = effectivePunch;
 	}
 
 	private spawnWave(now: number, intensity: number, settings: VisualizerSettings): void {

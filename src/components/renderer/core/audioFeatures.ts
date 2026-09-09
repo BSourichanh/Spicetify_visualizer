@@ -144,8 +144,12 @@ export function extractAudioFeatures(
 			if (segTime >= 0 && segTime < maxTime + 0.14) {
 				const attackDb = Math.max(0, (segment.loudness_max ?? -20) - (segment.loudness_start ?? -40));
 				const normAttack = Math.min(1, attackDb / 22);
+				// Sur les morceaux masterisés et compressés (drops), le delta dB est faible mais
+				// l'énergie sonore absolue (-8 dB à 0 dB) est colossale
+				const absLoudness = Math.max(0, Math.min(1, ((segment.loudness_max ?? -25) + 26) / 22));
+				const effectiveAttack = Math.max(normAttack, normAttack * 0.4 + absLoudness * 0.65);
 				const decay = Math.max(0, 1 - segTime / (maxTime + 0.14));
-				segTransient = normAttack * decay;
+				segTransient = effectiveAttack * decay;
 			}
 		} catch {}
 	}
@@ -170,7 +174,9 @@ export function extractAudioFeatures(
 					// Impact sec et percutant sur les 120 premières ms (vrai punch physique)
 					const punchDur = Math.min(0.13, dur * 0.35);
 					if (timeSinceBeat < punchDur) {
-						beatPunch = Math.pow(1 - timeSinceBeat / punchDur, 1.8) * conf;
+						// Amplification physique du kick en fonction de l'amplitude globale
+						const dropBoost = 0.72 + amplitude * 0.65;
+						beatPunch = Math.pow(1 - timeSinceBeat / punchDur, 1.6) * conf * dropBoost;
 					}
 					// Décroissance résonante de la basse sur le reste du beat
 					beatPulse = Math.pow(1 - timeSinceBeat / dur, 2.2) * conf;
@@ -191,7 +197,7 @@ export function extractAudioFeatures(
 	const spectralCentroid = Math.max(0, Math.min(1, (timbre[1] + 50) / 110));
 
 	// Punch : impact physique instantané (kick / caisse claire / drops)
-	const punch = Math.max(0, Math.min(1, beatPunch * 0.72 + segTransient * 0.48));
+	const punch = Math.max(0, Math.min(1, beatPunch * 0.78 + segTransient * 0.45));
 
 	// Bass Energy : Juste milieu dynamique (plage 0.12 repos -> 1.0 kick fort, sans blocage mou)
 	const rawBass = amplitude * 0.34 + beatPulse * 0.32 + punch * 0.28 + subTimbre * 0.14 + chromaBass * 0.12;

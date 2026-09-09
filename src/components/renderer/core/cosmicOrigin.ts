@@ -68,6 +68,8 @@ export class BigBangAmbientEngine {
 	public smoothBass = 0.1;
 	public smoothPunch = 0;
 	public rotation = 0;
+	public cosmicTime = 0;
+	public bassSpeedMult = 1.0;
 
 	public readonly shockwaves: PooledInflationWave[] = [];
 	public readonly stellarSeeds: StellarSeed[] = [];
@@ -99,6 +101,7 @@ export class BigBangAmbientEngine {
 		isPlaying: boolean,
 		bass: number,
 		punch: number,
+		transient: number,
 		speedScale: number,
 		maxDist: number,
 		settings: VisualizerSettings
@@ -106,26 +109,49 @@ export class BigBangAmbientEngine {
 		if (!isPlaying) {
 			this.smoothPunch *= 0.88;
 			this.smoothBass += (0.05 - this.smoothBass) * 0.1;
+			this.bassSpeedMult = 0.45;
+			this.cosmicTime += 0.005 * speedScale;
 			return;
 		}
 
-		this.smoothBass += (bass - this.smoothBass) * 0.15;
-		this.smoothPunch += (punch - this.smoothPunch) * 0.22;
-		this.rotation += 0.0035 * speedScale;
+		// Suivi d'enveloppe asymétrique : Attaque ultra-réactive sur le kick, déclin musical fluide
+		const bassDelta = bass - this.smoothBass;
+		this.smoothBass += bassDelta * (bassDelta > 0 ? 0.44 : 0.16);
+
+		const punchDelta = punch - this.smoothPunch;
+		this.smoothPunch += punchDelta * (punchDelta > 0 ? 0.68 : 0.22);
+
+		// Modulation dynamique de la vitesse selon l'intensité des basses
+		const useDynamicSpeed = settings?.bigBangDynamicSpeed ?? true;
+		this.bassSpeedMult = useDynamicSpeed
+			? 0.45 + Math.pow(this.smoothBass, 1.3) * 2.5 + this.smoothPunch * 1.5
+			: 1.0;
+
+		const effectiveSpeed = speedScale * this.bassSpeedMult;
+
+		this.cosmicTime += 0.024 * effectiveSpeed;
+		this.rotation += (0.003 + this.smoothPunch * 0.004) * effectiveSpeed;
 
 		const now = Date.now();
 		const waveEnabled = settings.bigBangWaveEnabled ?? true;
-		const threshold = settings.bigBangWaveThreshold ?? 0.82;
+		const threshold = settings.bigBangWaveThreshold ?? 0.68;
 
-		// Déclenchement exclusif sur basses très élevées
+		// Détection musicale intelligente : impact combiné de basse et attaque transitoire
+		const bassImpact = bass * 0.62 + punch * 0.58 + transient * 0.32;
 		const isHighBassExplosion =
-			(bass >= threshold && punch > 0.42) ||
-			bass >= Math.min(1.0, threshold * 1.1) ||
-			punch >= Math.min(1.0, threshold * 0.95);
+			(bass >= threshold && (punch > 0.24 || transient > 0.12 || punchDelta > 0.04)) ||
+			bassImpact >= threshold ||
+			bass >= Math.min(1.0, threshold * 1.08) ||
+			punch >= Math.min(1.0, threshold * 0.88);
 
-		if (waveEnabled && isHighBassExplosion && now - this.lastPunchTime > 320) {
+		const cooldown = Math.max(200, Math.round(300 / speedScale));
+		if (waveEnabled && isHighBassExplosion && now - this.lastPunchTime > cooldown) {
 			this.lastPunchTime = now;
-			this.spawnShockwave(maxDist * 1.3, (14 + punch * 22) * speedScale, 12 + punch * 18);
+			this.spawnShockwave(
+				maxDist * 1.35,
+				(18 + punch * 26 + bass * 12) * speedScale,
+				18 + punch * 24 + bass * 14
+			);
 		}
 
 		// Mise à jour des ondes d'inflation
@@ -133,12 +159,13 @@ export class BigBangAmbientEngine {
 			this.shockwaves[i].update();
 		}
 
-		// Mise à jour des graines stellaires
-		const kickBoost = isHighBassExplosion ? 3.5 : 1.0;
+		// Mise à jour des graines stellaires (propulsion réactive sur les basses)
+		const kickBoost = isHighBassExplosion ? 3.8 : 1.0;
 		for (let i = 0; i < this.stellarSeeds.length; i++) {
 			const seed = this.stellarSeeds[i];
-			seed.dist += seed.radialSpeed * speedScale * kickBoost * (0.75 + this.smoothPunch * 1.1);
-			seed.angle += seed.speed * 0.0025 * speedScale;
+			seed.dist +=
+				seed.radialSpeed * effectiveSpeed * kickBoost * (0.8 + this.smoothPunch * 2.2 + this.smoothBass * 0.8);
+			seed.angle += seed.speed * 0.0025 * effectiveSpeed;
 
 			if (seed.dist > maxDist) {
 				seed.dist = 15 + Math.random() * 35;
@@ -180,7 +207,15 @@ export function drawBigBangAmbient(
 	const baseR = Math.min(width, height) * 0.44;
 	const intensity = settings.bigBangAmbientIntensity ?? 1.0;
 
-	ambientEngine.update(isPlaying, features.bassEnergy, features.punch, speedScale, maxScreenR, settings);
+	ambientEngine.update(
+		isPlaying,
+		features.bassEnergy,
+		features.punch,
+		features.transientEnergy,
+		speedScale,
+		maxScreenR,
+		settings
+	);
 
 	ctx.save();
 
@@ -190,7 +225,11 @@ export function drawBigBangAmbient(
 		for (let l = 0; l < numLobes; l++) {
 			const lAngle = (l / numLobes) * Math.PI * 2 + ambientEngine.rotation;
 			const lReach =
-				baseR * (0.95 + Math.sin(features.energyTime * 1.6 + l * 1.3) * 0.2 + ambientEngine.smoothBass * 0.35);
+				baseR *
+				(0.95 +
+					Math.sin(ambientEngine.cosmicTime * 1.6 + l * 1.3) * 0.2 +
+					ambientEngine.smoothBass * 0.65 +
+					ambientEngine.smoothPunch * 0.45);
 
 			ctx.save();
 			ctx.translate(cx, cy);
@@ -214,19 +253,19 @@ export function drawBigBangAmbient(
 
 			const lobeGrad = ctx.createLinearGradient(0, 0, 0, lReach);
 			const lobeAlpha =
-				(0.14 + ambientEngine.smoothBass * 0.12 + (l % 2 === 0 ? ambientEngine.smoothPunch * 0.1 : 0)) *
+				(0.14 + ambientEngine.smoothBass * 0.26 + (l % 2 === 0 ? ambientEngine.smoothPunch * 0.22 : 0)) *
 				intensity;
 
-			lobeGrad.addColorStop(0, palette.veil(lobeAlpha * 1.1));
+			lobeGrad.addColorStop(0, palette.veil(lobeAlpha * 1.25));
 			lobeGrad.addColorStop(0.35, palette.veil(lobeAlpha * 0.85));
-			lobeGrad.addColorStop(0.75, palette.veil(lobeAlpha * 0.3));
+			lobeGrad.addColorStop(0.75, palette.veil(lobeAlpha * 0.35));
 			lobeGrad.addColorStop(1, "transparent");
 
 			ctx.fillStyle = lobeGrad;
 			ctx.fill();
 
 			ctx.lineWidth = 0.8;
-			ctx.strokeStyle = palette.rimVeil(lobeAlpha * 0.45);
+			ctx.strokeStyle = palette.rimVeil(lobeAlpha * 0.55);
 			ctx.stroke();
 
 			ctx.restore();
@@ -240,9 +279,9 @@ export function drawBigBangAmbient(
 			const curX = cx + Math.cos(seed.angle) * seed.dist;
 			const curY = cy + Math.sin(seed.angle) * seed.dist;
 
-			const pulse = 0.5 + 0.5 * Math.sin(features.energyTime * 2.8 + seed.phase);
-			const seedAlpha = (0.28 + ambientEngine.smoothBass * 0.28) * pulse * intensity;
-			const seedR = seed.size * (0.8 + ambientEngine.smoothPunch * 0.45);
+			const pulse = 0.5 + 0.5 * Math.sin(ambientEngine.cosmicTime * 2.8 + seed.phase);
+			const seedAlpha = (0.32 + ambientEngine.smoothBass * 0.5) * pulse * intensity;
+			const seedR = seed.size * (0.8 + ambientEngine.smoothPunch * 0.75 + ambientEngine.smoothBass * 0.35);
 
 			const sGrad = ctx.createRadialGradient(curX, curY, 0, curX, curY, seedR * 2.2);
 			sGrad.addColorStop(0, palette.highlight);
@@ -254,16 +293,16 @@ export function drawBigBangAmbient(
 			ctx.arc(curX, curY, seedR * 2.2, 0, Math.PI * 2);
 			ctx.fill();
 
-			if (ambientEngine.smoothPunch > 0.28) {
-				const tailLen = seed.radialSpeed * 7.0 * ambientEngine.smoothPunch;
+			if (ambientEngine.smoothPunch > 0.18) {
+				const tailLen = seed.radialSpeed * 8.5 * (ambientEngine.smoothPunch + ambientEngine.smoothBass * 0.35);
 				const tailX = curX - Math.cos(seed.angle) * tailLen;
 				const tailY = curY - Math.sin(seed.angle) * tailLen;
 
 				ctx.beginPath();
 				ctx.moveTo(curX, curY);
 				ctx.lineTo(tailX, tailY);
-				ctx.lineWidth = 0.9;
-				ctx.strokeStyle = palette.rimVeil(seedAlpha * 0.5);
+				ctx.lineWidth = 1.1;
+				ctx.strokeStyle = palette.rimVeil(seedAlpha * 0.65);
 				ctx.stroke();
 			}
 		}

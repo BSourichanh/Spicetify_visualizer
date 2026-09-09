@@ -24,6 +24,7 @@ export type VisualizerSettings = {
 	shockwaveEnabled: boolean; // default true (Activer l'onde de choc en arrière-plan)
 	shockwaveIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité de l'onde de choc)
 	shockwaveSpeed: number; // 0.4 to 2.5, default 1.0 (Vitesse d'expansion de l'onde de choc)
+	shockwaveSensitivity: number; // 0.2 to 2.5, default 1.0 (Sensibilité au déclenchement de l'onde de choc sur les basses)
 	firefliesEnabled: boolean; // default true (Activer les lucioles bioluminescentes)
 	firefliesIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité lumineuse des lucioles)
 	firefliesSize: number; // 0.3 to 3.0, default 1.0 (Échelle de taille des lucioles)
@@ -37,8 +38,9 @@ export type VisualizerSettings = {
 	jellyfishSwimSpeed: number; // 0.4 to 2.5, default 1.0 (Cadence de nage de la Méduse)
 	jellyfishTentacleLength: number; // 0.5 to 1.8, default 1.0 (Longueur des filaments soyeux)
 	bigBangAmbientEnabled: boolean; // default true (Activer l'ambiance cosmique Big Bang en arrière-plan de tous les modèles)
+	bigBangDynamicSpeed: boolean; // default true (Modulation dynamique de la vitesse selon l'intensité des basses)
 	bigBangWaveEnabled: boolean; // default true (Activer les ondes de choc d'inflation cosmologique)
-	bigBangWaveThreshold: number; // 0.60 to 0.95, default 0.82 (Seuil de déclenchement : réservé aux basses très élevées)
+	bigBangWaveThreshold: number; // 0.40 to 0.90, default 0.68 (Seuil de déclenchement : réservé aux basses très élevées)
 	bigBangAmbientIntensity: number; // 0.2 to 2.0, default 1.0 (Intensité de la nébuleuse et des poussières cosmiques)
 	bigBangNebulaEnabled: boolean; // default true (Activer les nuages de gaz primordial en arrière-plan)
 	bigBangStarsEnabled: boolean; // default true (Activer les graines stellaires relativistes)
@@ -66,6 +68,7 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	shockwaveEnabled: true,
 	shockwaveIntensity: 1.0,
 	shockwaveSpeed: 1.0,
+	shockwaveSensitivity: 1.0,
 	firefliesEnabled: true,
 	firefliesIntensity: 1.0,
 	firefliesSize: 1.0,
@@ -79,8 +82,9 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	jellyfishSwimSpeed: 1.0,
 	jellyfishTentacleLength: 1.0,
 	bigBangAmbientEnabled: true,
+	bigBangDynamicSpeed: true,
 	bigBangWaveEnabled: true,
-	bigBangWaveThreshold: 0.82,
+	bigBangWaveThreshold: 0.68,
 	bigBangAmbientIntensity: 1.0,
 	bigBangNebulaEnabled: true,
 	bigBangStarsEnabled: true,
@@ -182,6 +186,10 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.shockwaveSpeed === "number"
 						? Math.max(0.4, Math.min(2.5, parsed.shockwaveSpeed))
 						: DEFAULT_SETTINGS.shockwaveSpeed,
+				shockwaveSensitivity:
+					typeof parsed.shockwaveSensitivity === "number"
+						? Math.max(0.2, Math.min(2.5, parsed.shockwaveSensitivity))
+						: DEFAULT_SETTINGS.shockwaveSensitivity,
 				firefliesEnabled:
 					typeof parsed.firefliesEnabled === "boolean"
 						? parsed.firefliesEnabled
@@ -229,13 +237,17 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.bigBangAmbientEnabled === "boolean"
 						? parsed.bigBangAmbientEnabled
 						: DEFAULT_SETTINGS.bigBangAmbientEnabled,
+				bigBangDynamicSpeed:
+					typeof parsed.bigBangDynamicSpeed === "boolean"
+						? parsed.bigBangDynamicSpeed
+						: DEFAULT_SETTINGS.bigBangDynamicSpeed,
 				bigBangWaveEnabled:
 					typeof parsed.bigBangWaveEnabled === "boolean"
 						? parsed.bigBangWaveEnabled
 						: DEFAULT_SETTINGS.bigBangWaveEnabled,
 				bigBangWaveThreshold:
 					typeof parsed.bigBangWaveThreshold === "number"
-						? Math.max(0.6, Math.min(0.95, parsed.bigBangWaveThreshold))
+						? Math.max(0.4, Math.min(0.9, parsed.bigBangWaveThreshold))
 						: DEFAULT_SETTINGS.bigBangWaveThreshold,
 				bigBangAmbientIntensity:
 					typeof parsed.bigBangAmbientIntensity === "number"

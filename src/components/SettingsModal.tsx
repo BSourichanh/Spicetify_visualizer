@@ -429,6 +429,26 @@ export default function SettingsModal(props: SettingsModalProps) {
 								<>
 									<div className={styles.control_row} style={{ marginTop: "10px" }}>
 										<div className={styles.control_header}>
+											<span>🎯 Shockwave Bass Sensitivity</span>
+											<span className={styles.badge}>
+												{settings.shockwaveSensitivity.toFixed(2)}x
+											</span>
+										</div>
+										<input
+											type="range"
+											min="0.2"
+											max="2.5"
+											step="0.05"
+											value={settings.shockwaveSensitivity}
+											className={styles.slider}
+											onChange={e =>
+												handleSliderChange("shockwaveSensitivity", parseFloat(e.target.value))
+											}
+										/>
+									</div>
+
+									<div className={styles.control_row}>
+										<div className={styles.control_header}>
 											<span>⚡ Shockwave Intensity</span>
 											<span className={styles.badge}>
 												{settings.shockwaveIntensity.toFixed(2)}x
@@ -560,8 +580,8 @@ export default function SettingsModal(props: SettingsModalProps) {
 											</div>
 											<input
 												type="range"
-												min="0.60"
-												max="0.95"
+												min="0.40"
+												max="0.90"
 												step="0.02"
 												value={settings.bigBangWaveThreshold}
 												className={styles.slider}
@@ -574,6 +594,17 @@ export default function SettingsModal(props: SettingsModalProps) {
 											/>
 										</div>
 									)}
+
+									{/* Vitesse dynamique réactive aux basses */}
+									<div className={styles.control_header} style={{ marginTop: "12px" }}>
+										<span>⚡ Vitesse Dynamique Réactive aux Basses</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.bigBangDynamicSpeed ? styles.active : ""}`}
+											onClick={() => handleToggleChange("bigBangDynamicSpeed")}
+										>
+											{settings.bigBangDynamicSpeed ? "ON" : "OFF"}
+										</button>
+									</div>
 
 									{/* Nébuleuse & Nuages Primordiaux */}
 									<div className={styles.control_header} style={{ marginTop: "12px" }}>
@@ -1040,8 +1071,8 @@ export default function SettingsModal(props: SettingsModalProps) {
 										</div>
 										<input
 											type="range"
-											min="0.60"
-											max="0.95"
+											min="0.40"
+											max="0.90"
 											step="0.02"
 											value={settings.bigBangWaveThreshold}
 											className={styles.slider}
@@ -1051,6 +1082,16 @@ export default function SettingsModal(props: SettingsModalProps) {
 										/>
 									</div>
 								)}
+
+								<div className={styles.control_header} style={{ marginTop: "12px" }}>
+									<span>⚡ Dynamic Bass Speed Modulation</span>
+									<button
+										className={`${styles.toggle_btn} ${settings.bigBangDynamicSpeed ? styles.active : ""}`}
+										onClick={() => handleToggleChange("bigBangDynamicSpeed")}
+									>
+										{settings.bigBangDynamicSpeed ? "ON" : "OFF"}
+									</button>
+								</div>
 							</div>
 						)}
 					</>
