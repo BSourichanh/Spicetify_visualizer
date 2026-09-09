@@ -47,12 +47,14 @@ export function getThemePalette(
 		Math.min(1, (effectivePunch * 0.8 + bassEnergy * 0.45 + Math.max(0, moodBrightness)) * Math.min(1.5, glowScale))
 	);
 
-	const hr = Math.min(255, Math.round(r + (255 - r) * flash * 0.95));
-	const hg = Math.min(255, Math.round(g + (255 - g) * flash * 0.95));
-	const hb = Math.min(255, Math.round(b + (255 - b) * flash * 0.95));
+	// Highlight néon éclatant : booste la brillance tout en préservant fidèlement la couleur du thème (jamais blanc délavé)
+	const highlightFactor = 0.32 + flash * 0.22;
+	const hr = Math.min(255, Math.round(r + (255 - r) * highlightFactor));
+	const hg = Math.min(255, Math.round(g + (255 - g) * highlightFactor));
+	const hb = Math.min(255, Math.round(b + (255 - b) * highlightFactor));
 
-	// Bordures nettement plus claires que l'intérieur (mélange lumineux pour liseré / effet Fresnel)
-	const rimFactor = 0.58 + flash * 0.32;
+	// Bordures plus claires et éclatantes que l'intérieur, tout en restant fidèles à la couleur du thème
+	const rimFactor = 0.18 + flash * 0.14;
 	const rimR = Math.min(255, Math.round(r + (255 - r) * rimFactor));
 	const rimG = Math.min(255, Math.round(g + (255 - g) * rimFactor));
 	const rimB = Math.min(255, Math.round(b + (255 - b) * rimFactor));

@@ -17,3 +17,9 @@ export * from "./core/neonCurrent";
 
 // Background Volumetric Shockwave
 export * from "./core/backgroundShockwave";
+
+// Bioluminescent Fireflies Ambient Layer
+export * from "./core/fireflies";
+
+// High-Fidelity Multi-Band Frequency Separation
+export * from "./core/frequencyBands";

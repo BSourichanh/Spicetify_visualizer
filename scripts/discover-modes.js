@@ -55,7 +55,8 @@ function discoverModes() {
 // ============================================================================
 
 import React from "react";
-import { RendererDefinition } from "../../defs";
+import type { RendererDefinition } from "../../defs";
+import { RENDERERS } from "../../defs";
 import { createCanvasVisualizer, ModeConfig } from "./createCanvasVisualizer";
 
 ${imports.join("\n")}
@@ -65,18 +66,21 @@ ${modeVars.map(v => `\t${v}`).join(",\n")}
 ];
 
 export const GENERATED_RENDERERS: Record<string, RendererDefinition> = {};
-export const GENERATED_RANDOM_VISUALIZERS: { name: string; Component: React.FunctionComponent<any> }[] = [];
+export const GENERATED_RANDOM_VISUALIZERS: { id: string; name: string; Component: React.FunctionComponent<any> }[] = [];
 
 for (const mode of ACTIVE_MODES) {
 	if (!mode || !mode.id || !mode.name || !mode.render) continue;
 	const Component = createCanvasVisualizer(mode.render, mode.name);
-	GENERATED_RENDERERS[mode.id] = {
+	const rendererDef: RendererDefinition = {
 		name: mode.name,
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: Component
 	};
+	GENERATED_RENDERERS[mode.id] = rendererDef;
+	RENDERERS[mode.id] = rendererDef;
 	if (mode.randomPool !== false) {
 		GENERATED_RANDOM_VISUALIZERS.push({
+			id: mode.id,
 			name: mode.name,
 			Component
 		});

@@ -1,22 +1,45 @@
-import { createCanvasVisualizer, ModeRenderFunction } from "./createCanvasVisualizer";
+import { createCanvasVisualizer, ModeConfig, ModeRenderFunction } from "./createCanvasVisualizer";
 import { ACTIVE_MODES } from "./modes.generated";
-import { getVisualizerSettings } from "../../settings/settingsManager";
+import { getVisualizerSettings, subscribeToSettings, VisualizerSettings } from "../../settings/settingsManager";
 
 function pickNextIndex(current: number, total: number): number {
 	if (total <= 1) return 0;
 	let next = Math.floor(Math.random() * (total - 1));
-	if (next >= current) next += 1;
+	if (next >= current % total) next += 1;
 	return next;
 }
 
+function getEligibleModes(settings: VisualizerSettings): ModeConfig[] {
+	if (!ACTIVE_MODES || !Array.isArray(ACTIVE_MODES)) return [];
+	const all = ACTIVE_MODES.filter(m => Boolean(m) && m.randomPool !== false);
+	const enabled = settings.enabledChaosModes;
+	if (Array.isArray(enabled) && enabled.length > 0) {
+		const filtered = all.filter(m => enabled.includes(m.id));
+		if (filtered.length > 0) {
+			return filtered;
+		}
+	}
+	return all;
+}
+
 function createChaosRenderer(): ModeRenderFunction {
-	let currentModeIndex = Math.floor(Math.random() * Math.max(1, ACTIVE_MODES.length));
+	let cachedModes: ModeConfig[] = [];
+	let currentModeIndex = 0;
 	let lastSwitchTime = 0;
 	let wasBassHigh = false;
 	let lastTrackUri: string | undefined = undefined;
 
+	// Mise à jour réactive du pool de modes éligibles (0 allocation par trame dans render)
+	subscribeToSettings(newSettings => {
+		cachedModes = getEligibleModes(newSettings);
+	});
+
 	return (ctx, width, height, features, palette) => {
-		const modes = ACTIVE_MODES.filter(m => Boolean(m) && m.randomPool !== false);
+		if (cachedModes.length === 0) {
+			cachedModes = getEligibleModes(getVisualizerSettings());
+			currentModeIndex = Math.floor(Math.random() * Math.max(1, cachedModes.length));
+		}
+		const modes = cachedModes;
 		if (modes.length === 0) return;
 
 		const now = performance.now();

@@ -26,6 +26,7 @@ export type AudioFeatures = {
 	danceability: number;
 	isMajorKey: boolean;
 	sectionLoudnessNorm: number;
+	isPlaying: boolean;
 };
 
 export function getThemeColor(color: any): { css: string; r: number; g: number; b: number } {
@@ -253,6 +254,8 @@ export function extractAudioFeatures(
 	const tempoFit = 1 - Math.min(1, Math.abs(tempo - 122) / 65);
 	const danceability = Math.max(0.15, Math.min(0.95, 0.4 + tempoFit * 0.35 + (analysis?.beats?.length ? 0.2 : 0)));
 
+	const isPlaying = typeof Spicetify?.Player?.isPlaying === "function" ? Spicetify.Player.isPlaying() : true;
+
 	return {
 		amplitude,
 		smoothAmp,
@@ -271,6 +274,7 @@ export function extractAudioFeatures(
 		energy,
 		danceability,
 		isMajorKey,
-		sectionLoudnessNorm
+		sectionLoudnessNorm,
+		isPlaying
 	};
 }

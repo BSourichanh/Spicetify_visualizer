@@ -242,7 +242,7 @@ export default function App(props: {
 		</div>
 	);
 
-	if (typeof document !== "undefined" && document.body) {
+	if (!props.isSecondaryWindow && typeof document !== "undefined" && document.body) {
 		return ReactDOM.createPortal(content, document.body);
 	}
 

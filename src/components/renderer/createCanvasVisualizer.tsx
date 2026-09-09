@@ -6,6 +6,7 @@ import { AudioSyncManager } from "../../audio-sync";
 import {
 	buildAmplitudeCurve,
 	drawBackgroundShockwave,
+	drawFireflies,
 	extractAudioFeatures,
 	getThemeColor,
 	getThemePalette,
@@ -21,7 +22,8 @@ export type ModeRenderFunction = (
 	width: number,
 	height: number,
 	features: AudioFeatures,
-	palette: ThemePalette
+	palette: ThemePalette,
+	analysis?: SpotifyAudioAnalysis
 ) => void;
 
 export type ModeConfig = {
@@ -55,6 +57,8 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 			return buildAmplitudeCurve(audioAnalysis);
 		}, [audioAnalysis]);
 
+		const featuresRef = React.useRef<AudioFeatures | null>(null);
+
 		const onInit = useCallback(
 			(ctx: CanvasRenderingContext2D | null): RendererState => {
 				if (!ctx) {
@@ -77,28 +81,74 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 				try {
 					const { width, height } = ctx.canvas;
 					if (width <= 0 || height <= 0) return;
-
-					// Fond 100% transparent
-					ctx.clearRect(0, 0, width, height);
-
-					const progress = AudioSyncManager.getProgress();
 					const settings = getVisualizerSettings();
 
+					// Fond 100% transparent (ou tamisé si backgroundDim est activé)
+					ctx.clearRect(0, 0, width, height);
+					if (settings.backgroundDim > 0) {
+						ctx.fillStyle = `rgba(0, 0, 0, ${settings.backgroundDim})`;
+						ctx.fillRect(0, 0, width, height);
+					}
+
+					const isPlaying =
+						typeof Spicetify?.Player?.isPlaying === "function" ? Spicetify.Player.isPlaying() : true;
+					const progress = AudioSyncManager.getProgress();
+
 					const rawFeatures = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
-					const bassEnergy = Math.max(0.05, Math.min(1.0, rawFeatures.bassEnergy * settings.punchScale));
-					const punch = Math.max(0, Math.min(1.0, rawFeatures.punch * settings.punchScale));
+					const bassEnergy = isPlaying
+						? Math.max(
+								0.05,
+								Math.min(
+									1.0,
+									rawFeatures.bassEnergy * settings.punchScale * (settings.bassScale ?? 1.0)
+								)
+							)
+						: 0.05;
+					const punch = isPlaying ? Math.max(0, Math.min(1.0, rawFeatures.punch * settings.punchScale)) : 0;
+					const trebleEnergy = isPlaying
+						? Math.max(0.05, Math.min(1.0, rawFeatures.trebleEnergy * (settings.trebleScale ?? 1.0)))
+						: 0.05;
 					const energyTime = rawFeatures.energyTime * settings.speedScale;
 
-					const features: AudioFeatures = {
-						...rawFeatures,
-						bassEnergy,
-						punch,
-						energyTime
-					};
+					// Réutilisation de l'objet AudioFeatures (Zéro allocation par trame)
+					if (!featuresRef.current) {
+						featuresRef.current = {
+							...rawFeatures,
+							isPlaying,
+							beatIntensity: isPlaying ? rawFeatures.beatIntensity : 0,
+							transientEnergy: isPlaying ? rawFeatures.transientEnergy : 0,
+							bassEnergy,
+							punch,
+							trebleEnergy,
+							energyTime
+						};
+					} else {
+						const f = featuresRef.current;
+						Object.assign(f, rawFeatures);
+						f.isPlaying = isPlaying;
+						f.beatIntensity = isPlaying ? rawFeatures.beatIntensity : 0;
+						f.transientEnergy = isPlaying ? rawFeatures.transientEnergy : 0;
+						f.bassEnergy = bassEnergy;
+						f.punch = punch;
+						f.trebleEnergy = trebleEnergy;
+						f.energyTime = energyTime;
+					}
+					const features = featuresRef.current;
 
-					// Palette : couleur de l'album ou couleur personnalisée
-					const activeColor = settings.colorMode === "custom" ? settings.customColor : data.themeColor;
-					const colorInfo = getThemeColor(activeColor);
+					// Palette : couleur de l'album, couleur fixe ou cycle chromatique arc-en-ciel
+					let colorInfo: { r: number; g: number; b: number };
+					if (settings.colorCycleEnabled) {
+						const timeSec = performance.now() * 0.001 * (settings.colorCycleSpeed ?? 1.0);
+						colorInfo = {
+							r: Math.round(128 + 127 * Math.sin(timeSec * 1.4)),
+							g: Math.round(128 + 127 * Math.sin(timeSec * 1.4 + (2 * Math.PI) / 3)),
+							b: Math.round(128 + 127 * Math.sin(timeSec * 1.4 + (4 * Math.PI) / 3))
+						};
+					} else {
+						const activeColor = settings.colorMode === "custom" ? settings.customColor : data.themeColor;
+						colorInfo = getThemeColor(activeColor);
+					}
+
 					const palette = getThemePalette(
 						colorInfo,
 						bassEnergy,
@@ -111,10 +161,13 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					// 1. Onde de choc d'arrière-plan sur les basses (rendue derrière le modèle)
 					drawBackgroundShockwave(ctx, width, height, features, palette, settings);
 
-					// 2. Mise à jour de la propagation du courant néon à travers le modèle
+					// 2. Lucioles bioluminescentes flottantes (sursaut d'intensité au passage de l'onde)
+					drawFireflies(ctx, width, height, features, palette, settings);
+
+					// 3. Mise à jour de la propagation du courant néon à travers le modèle
 					neonCurrentManager.update(features, settings);
 
-					// 3. Échelle du visuel centrée optiquement (Modèle en premier plan)
+					// 4. Échelle du visuel centrée optiquement (Modèle en premier plan)
 					ctx.save();
 					if (settings.sizeScale !== 1.0) {
 						const { cx, cy } = getVisualizerCenter(ctx);
@@ -123,7 +176,7 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 						ctx.translate(-cx, -cy);
 					}
 
-					render(ctx, width, height, features, palette);
+					render(ctx, width, height, features, palette, data.audioAnalysis);
 					ctx.restore();
 				} catch (err) {
 					console.error(`[Visualizer] ${modeName} render error:`, err);

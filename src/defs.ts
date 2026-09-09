@@ -1,10 +1,8 @@
 import { MetadataService } from "spicetify-utils";
 import DebugVisualizer from "./components/renderer/DebugVisualizer";
 import NCSVisualizer from "./components/renderer/NCSVisualizer";
-import SpectrumVisualizer from "./components/renderer/SpectrumVisualizer";
 import RandomVisualizer from "./components/renderer/RandomVisualizer";
 import ChaosVisualizer from "./components/renderer/ChaosVisualizer";
-import { GENERATED_RENDERERS } from "./components/renderer/modes.generated";
 import {
 	loadAudioAnalysis,
 	loadAudioAttributes,
@@ -53,16 +51,10 @@ export const RENDERERS: Record<string, RendererDefinition> = {
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: ChaosVisualizer
 	},
-	...GENERATED_RENDERERS,
 	ncs: {
 		name: "⚡ NCS",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: NCSVisualizer
-	},
-	spectrum: {
-		name: "📊 Spectrum",
-		requiredAudioData: ["audioAnalysis", "extractedColor"],
-		renderer: SpectrumVisualizer
 	},
 	debug: {
 		name: "🛠️ Debug",
@@ -70,5 +62,8 @@ export const RENDERERS: Record<string, RendererDefinition> = {
 		renderer: DebugVisualizer
 	}
 };
+
+// Enregistrer les modes générés automatiquement dans RENDERERS
+import "./components/renderer/modes.generated";
 
 export const DEFAULT_COLOR = "#535353";

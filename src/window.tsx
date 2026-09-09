@@ -52,6 +52,17 @@ export async function createVisualizerWindow(rendererId: string) {
 
 		popupDocument.documentElement.className = document.documentElement.className;
 		popupDocument.body.className = document.body.className;
+		popupDocument.title = "Spicetify Visualizer";
+		popupDocument.documentElement.style.background = "#000000";
+		popupDocument.documentElement.style.overflow = "hidden";
+		popupDocument.documentElement.style.width = "100%";
+		popupDocument.documentElement.style.height = "100%";
+		popupDocument.body.style.margin = "0";
+		popupDocument.body.style.padding = "0";
+		popupDocument.body.style.overflow = "hidden";
+		popupDocument.body.style.width = "100%";
+		popupDocument.body.style.height = "100%";
+		popupDocument.body.style.background = "#000000";
 
 		const StyleSheetManager = SpotifyModules.getStyleSheetManager() as any;
 		const destructor = Spicetify.ReactDOM.unmountComponentAtNode.bind(Spicetify.ReactDOM, popupDocument.body);
