@@ -44,10 +44,11 @@ class NebularPillarsLayer implements NebulaLayer {
 
 	public render(ctx: CanvasRenderingContext2D, frame: CosmicNebulaFrameContext): void {
 		const { baseR, time, bassEnergy, punch, palette } = frame;
+		const pillarPulse = bassEnergy * 0.32 + punch * 0.28;
 
 		for (let l = 0; l < NebularPillarsLayer.NUM_LOBES; l++) {
 			const lAngle = (l / NebularPillarsLayer.NUM_LOBES) * Math.PI * 2 + time * 0.08;
-			const lLen = baseR * (0.85 + Math.sin(time * 2.0 + l * 1.2) * 0.18 + bassEnergy * 0.25);
+			const lLen = baseR * (0.82 + Math.sin(time * 2.0 + l * 1.2) * 0.16 + pillarPulse);
 
 			ctx.save();
 			ctx.rotate(lAngle);
@@ -120,7 +121,7 @@ class NebularPillarsLayer implements NebulaLayer {
 class StellarHeartLayer implements NebulaLayer {
 	public render(ctx: CanvasRenderingContext2D, frame: CosmicNebulaFrameContext): void {
 		const { baseR, bassEnergy, punch, palette } = frame;
-		const heartR = baseR * 0.22 * (1.0 + bassEnergy * 0.25 + punch * 0.2);
+		const heartR = baseR * 0.22 * (1.0 + bassEnergy * 0.32 + punch * 0.26);
 
 		const heartGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, heartR);
 		heartGrad.addColorStop(0, "#ffffff");

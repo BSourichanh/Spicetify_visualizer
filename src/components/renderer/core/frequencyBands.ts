@@ -158,13 +158,17 @@ export function extractFrequencyBands(
 		targetChannels[ch] = Math.max(0.03, Math.min(1.0, val));
 	}
 
-	// 4. Balistique analogique : Attaque ultra-rapide (26/s) et descente soyeuse (7/s)
+	// 4. Balistique analogique : Attaque ultra-rapide et descente soyeuse exponentielle
+	const safeDt = Math.max(0.008, Math.min(0.08, dt));
+	const attackRate = 1.0 - Math.exp(-safeDt * 28.0);
+	const releaseRate = 1.0 - Math.exp(-safeDt * 7.5);
+
 	for (let i = 0; i < NUM_CHANNELS; i++) {
 		const target = targetChannels[i];
 		if (target > smoothedChannels[i]) {
-			smoothedChannels[i] += (target - smoothedChannels[i]) * Math.min(1.0, dt * 26.0);
+			smoothedChannels[i] += (target - smoothedChannels[i]) * attackRate;
 		} else {
-			smoothedChannels[i] += (target - smoothedChannels[i]) * Math.min(1.0, dt * 7.0);
+			smoothedChannels[i] += (target - smoothedChannels[i]) * releaseRate;
 		}
 
 		// Crêtes flottantes (floating peaks)
@@ -172,8 +176,8 @@ export function extractFrequencyBands(
 			peaks[i] = smoothedChannels[i];
 			peakVelocities[i] = 0;
 		} else {
-			peakVelocities[i] += dt * 0.65;
-			peaks[i] = Math.max(0.02, peaks[i] - peakVelocities[i] * dt);
+			peakVelocities[i] += safeDt * 0.65;
+			peaks[i] = Math.max(0.02, peaks[i] - peakVelocities[i] * safeDt);
 		}
 	}
 

@@ -1,6 +1,5 @@
 import { MetadataService } from "spicetify-utils";
 import DebugVisualizer from "./components/renderer/DebugVisualizer";
-import NCSVisualizer from "./components/renderer/NCSVisualizer";
 import RandomVisualizer from "./components/renderer/RandomVisualizer";
 import ChaosVisualizer from "./components/renderer/ChaosVisualizer";
 import {
@@ -50,11 +49,6 @@ export const RENDERERS: Record<string, RendererDefinition> = {
 		name: "💥 Chaos",
 		requiredAudioData: ["audioAnalysis", "extractedColor"],
 		renderer: ChaosVisualizer
-	},
-	ncs: {
-		name: "⚡ NCS",
-		requiredAudioData: ["audioAnalysis", "extractedColor"],
-		renderer: NCSVisualizer
 	},
 	debug: {
 		name: "🛠️ Debug",

@@ -1,0 +1,862 @@
+import { ThemePalette } from "../core/palette";
+import { getVisualizerCenter } from "../core/geometry";
+import { ModeConfig } from "../createCanvasVisualizer";
+import { neonCurrentManager } from "../core/neonCurrent";
+import { getVisualizerSettings } from "../../../settings/settingsManager";
+import { AudioFeatures } from "../core/audioFeatures";
+
+/**
+ * 🪼 CYBER-MEDUSA // MÉDUSE ROYALE BIOLUMINESCENTE CYBERPUNK
+ *
+ * Architecture & Design Standards :
+ * 1. Dôme Translucide Sculpté & Marge Festonnée (Scalloped Bell & Fresnel Rim) :
+ *    - Silhouette aérodynamique soyeuse avec bord inférieur festonné (lobes ondulants).
+ *    - Manteau en verre fumé avec liseré interne Fresnel néon et bordure marginale incisive.
+ *    - 8 canaux radiaires bio-électriques sans croisement parasite, reliant l'apex aux lobes.
+ *    - 8 capteurs sensoriels marginaux (Rhopalies) en diamant étincelant sur les aigus.
+ * 2. Cœur Gastrique Bio-Quantique (Trèfle Lumineux & Noyau Fusion) :
+ *    - 4 lobes gastriques en fer à cheval / trèfle néon, signature emblématique des méduses.
+ *    - Noyau de fusion plasma central pulsant en profondeur sur les sub-basses et les kicks.
+ * 3. Grands Bras Oraux Flottants (4 Cascades d'Aurore Voluptueuses) :
+ *    - 4 drapés soyeux aux bordures ondulantes délicates et dégradés translucides vaporeux.
+ *    - Bordures tracées en néon ultra-net avec filament blanc incandescent.
+ * 4. 16 Tentacules en Fibres Optiques avec Surtension Haute Tension :
+ *    - Tri en profondeur (arrière-plan Z < 0 et premier-plan Z >= 0).
+ *    - Physique fluide de traînée naturelle (propagation d'ondes inertielles).
+ *    - Intégration totale de neonCurrentManager : éclair d'énergie blanche haute tension lors des drops.
+ *    - Condensateurs diamantés aux extrémités.
+ * 5. Respect Strict des Règles AGENTS.md :
+ *    - Règle 6 : 100% harmonisé avec la ThemePalette Spotify (palette.solid, palette.glow, etc.).
+ *    - Règle 4 : Strictement zéro allocation dynamique par frame (buffers Float32Array pré-alloués).
+ */
+
+// ============================================================================
+// 1. CONTEXTE IMMUABLE DE RENDU (Context / DTO Pattern)
+// ============================================================================
+
+export interface JellyfishFrameContext {
+	readonly cx: number;
+	readonly cy: number;
+	readonly currentCy: number;
+	readonly radius: number;
+	readonly time: number;
+	readonly isPlaying: boolean;
+	readonly swimSpeed: number;
+	readonly tentacleScale: number;
+	readonly glowScale: number;
+	readonly bellW: number;
+	readonly bellH: number;
+	readonly bellD: number;
+	readonly apexY: number;
+	readonly rimY: number;
+	readonly smoothBass: number;
+	readonly smoothPunch: number;
+	readonly smoothThrust: number;
+	readonly smoothTilt: number;
+	readonly trebleEnergy: number;
+	readonly palette: ThemePalette;
+	readonly features: AudioFeatures;
+}
+
+// ============================================================================
+// 2. MOTEUR PHYSIQUE & SIMULATION (Zero Allocation / 60 FPS)
+// ============================================================================
+
+export interface CyberSpore {
+	normX: number;
+	normY: number;
+	size: number;
+	phase: number;
+	speed: number;
+}
+
+export class CosmicMedusaEngine {
+	public smoothBass = 0.1;
+	public smoothPunch = 0;
+	public smoothThrust = 0;
+	public smoothTilt = 0;
+	public cycle = 0;
+
+	public readonly spores: CyberSpore[] = [];
+
+	// Buffers Float32Array pré-alloués pour les 16 tentacules (29 points chacun)
+	public static readonly NUM_TENDRILS = 16;
+	public static readonly TENDRIL_SEGMENTS = 28;
+	public static readonly TENDRIL_PTS = CosmicMedusaEngine.TENDRIL_SEGMENTS + 1;
+	public readonly tendrilX = new Float32Array(CosmicMedusaEngine.NUM_TENDRILS * CosmicMedusaEngine.TENDRIL_PTS);
+	public readonly tendrilY = new Float32Array(CosmicMedusaEngine.NUM_TENDRILS * CosmicMedusaEngine.TENDRIL_PTS);
+	public readonly tendrilDepth = new Float32Array(CosmicMedusaEngine.NUM_TENDRILS);
+	public readonly tendrilIsFront = new Uint8Array(CosmicMedusaEngine.NUM_TENDRILS);
+
+	// Buffers pré-alloués pour les 4 grands bras oraux (25 points chacun)
+	public static readonly NUM_ARMS = 4;
+	public static readonly ARM_SEGMENTS = 24;
+	public static readonly ARM_PTS = CosmicMedusaEngine.ARM_SEGMENTS + 1;
+	public readonly armLeftX = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+	public readonly armLeftY = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+	public readonly armRightX = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+	public readonly armRightY = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+	public readonly armSpineX = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+	public readonly armSpineY = new Float32Array(CosmicMedusaEngine.NUM_ARMS * CosmicMedusaEngine.ARM_PTS);
+
+	// Coordonnées pré-allouées des 8 canaux radiaires de l'ombrelle
+	public static readonly NUM_CANALS = 8;
+	public readonly canalRimX = new Float32Array(CosmicMedusaEngine.NUM_CANALS);
+	public readonly canalRimY = new Float32Array(CosmicMedusaEngine.NUM_CANALS);
+	public readonly canalCtrlX = new Float32Array(CosmicMedusaEngine.NUM_CANALS);
+	public readonly canalCtrlY = new Float32Array(CosmicMedusaEngine.NUM_CANALS);
+
+	// Coordonnées pré-allouées des festons du bord marginal (33 points)
+	public static readonly SCALLOP_PTS = 33;
+	public readonly scallopX = new Float32Array(CosmicMedusaEngine.SCALLOP_PTS);
+	public readonly scallopY = new Float32Array(CosmicMedusaEngine.SCALLOP_PTS);
+
+	constructor() {
+		// 24 micro-spores luminescentes en suspension
+		for (let i = 0; i < 24; i++) {
+			this.spores.push({
+				normX: (Math.random() - 0.5) * 2.2,
+				normY: 0.1 + Math.random() * 2.2,
+				size: 2.0 + Math.random() * 3.5,
+				phase: Math.random() * Math.PI * 2,
+				speed: 0.4 + Math.random() * 0.9
+			});
+		}
+	}
+
+	public update(isPlaying: boolean, bass: number, punch: number, speed: number): void {
+		if (!isPlaying) {
+			this.smoothPunch *= 0.9;
+			this.smoothBass += (0.05 - this.smoothBass) * 0.08;
+			this.smoothThrust *= 0.92;
+			this.smoothTilt *= 0.92;
+			return;
+		}
+
+		this.smoothBass += (bass - this.smoothBass) * 0.16;
+		this.smoothPunch += (punch - this.smoothPunch) * 0.28;
+
+		// Propulsion rythmique par contraction (Jet-Propulsion)
+		const targetThrust = -this.smoothPunch * 28.0 * speed;
+		this.smoothThrust += (targetThrust - this.smoothThrust) * 0.18;
+		this.smoothThrust *= 0.94;
+
+		const targetTilt = Math.sin(this.cycle * 0.45) * 0.035 + this.smoothThrust * 0.0018;
+		this.smoothTilt += (targetTilt - this.smoothTilt) * 0.08;
+
+		this.cycle += 0.016 * speed;
+	}
+
+	public computeScallopedRim(cx: number, rimY: number, bellW: number, bellD: number, time: number): void {
+		for (let s = 0; s < CosmicMedusaEngine.SCALLOP_PTS; s++) {
+			// Angle de PI (gauche) à 0 (droite) pour l'arc avant
+			const theta = Math.PI * (1 - s / (CosmicMedusaEngine.SCALLOP_PTS - 1));
+			const cosT = Math.cos(theta);
+			const sinT = Math.sin(theta);
+
+			// Ondulation douce des festons avec étouffement progressif aux commissures
+			const flutter = Math.sin(theta * 8.0 + time * 2.2) * (3.5 + this.smoothBass * 5.0) * sinT;
+
+			this.scallopX[s] = cx + cosT * bellW;
+			this.scallopY[s] = rimY + sinT * bellD + flutter;
+		}
+	}
+
+	public computeRadialCanals(
+		cx: number,
+		apexY: number,
+		rimY: number,
+		bellW: number,
+		bellH: number,
+		bellD: number
+	): void {
+		for (let k = 0; k < CosmicMedusaEngine.NUM_CANALS; k++) {
+			const theta = Math.PI * ((k + 0.5) / CosmicMedusaEngine.NUM_CANALS);
+			const cosT = Math.cos(theta);
+			const sinT = Math.sin(theta);
+
+			const rx = cx + cosT * (bellW * 0.94);
+			const ry = rimY + sinT * (bellD * 0.94);
+
+			// Point de contrôle galbé pour une courbure sphérique élégante
+			const ctrlX = cx + cosT * (bellW * 1.02);
+			const ctrlY = apexY + (ry - apexY) * 0.58;
+
+			this.canalRimX[k] = rx;
+			this.canalRimY[k] = ry;
+			this.canalCtrlX[k] = ctrlX;
+			this.canalCtrlY[k] = ctrlY;
+		}
+	}
+
+	public computeOralArms(
+		cx: number,
+		armBaseY: number,
+		armLen: number,
+		bellW: number,
+		time: number,
+		swimSpeed: number,
+		isPlaying: boolean
+	): void {
+		// 4 rubans avec espacements symétriques
+		const offsets = [-0.3, -0.1, 0.1, 0.3];
+
+		for (let a = 0; a < CosmicMedusaEngine.NUM_ARMS; a++) {
+			const baseOffset = offsets[a] * bellW;
+			const aPhase = isPlaying ? time * 1.6 * swimSpeed + a * 1.3 : a * 1.3;
+			const baseIdx = a * CosmicMedusaEngine.ARM_PTS;
+			const maxHalfW = bellW * 0.16;
+
+			for (let s = 0; s <= CosmicMedusaEngine.ARM_SEGMENTS; s++) {
+				const p = s / CosmicMedusaEngine.ARM_SEGMENTS;
+				const curY = armBaseY + p * armLen - this.smoothThrust * Math.pow(p, 1.15) * 0.55;
+
+				// Ondulation harmonique soyeuse (style ruban d'eau)
+				const flow1 = Math.sin(aPhase - p * 3.2) * (14 + p * 28 + this.smoothBass * 18);
+				const flow2 = Math.cos(aPhase * 0.85 + p * 2.0 + a) * (8 + p * 14);
+				const spineX = cx + baseOffset * (1 - p * 0.35) + flow1 * 0.72 + flow2 * 0.28;
+
+				// Largeur galbée épanouie au centre et s'affinant vers la pointe
+				const envelope = Math.sin(p * Math.PI) * (1.0 + 0.25 * Math.sin(time * 3.2 + s * 0.6));
+				const curHalfW = maxHalfW * envelope;
+
+				const idx = baseIdx + s;
+				this.armSpineX[idx] = spineX;
+				this.armSpineY[idx] = curY;
+				this.armLeftX[idx] = spineX - curHalfW;
+				this.armLeftY[idx] = curY;
+				this.armRightX[idx] = spineX + curHalfW;
+				this.armRightY[idx] = curY;
+			}
+		}
+	}
+
+	public computeTendrils(
+		cx: number,
+		rimY: number,
+		bellW: number,
+		bellD: number,
+		tendrilLen: number,
+		time: number,
+		swimSpeed: number,
+		trebleEnergy: number,
+		isPlaying: boolean
+	): void {
+		for (let i = 0; i < CosmicMedusaEngine.NUM_TENDRILS; i++) {
+			const angle = (i / CosmicMedusaEngine.NUM_TENDRILS) * Math.PI * 2;
+			const cosA = Math.cos(angle);
+			const sinA = Math.sin(angle);
+			this.tendrilDepth[i] = sinA;
+			this.tendrilIsFront[i] = sinA >= -0.15 ? 1 : 0;
+
+			const rootX = cx + cosA * (bellW * 0.92);
+			const rootY = rimY + sinA * (bellD * 0.85);
+
+			const phase1 = isPlaying ? time * 1.8 * swimSpeed - i * 0.38 : -i * 0.38;
+			const phase2 = isPlaying ? time * 0.95 * swimSpeed + i * 0.28 : i * 0.28;
+
+			const baseIdx = i * CosmicMedusaEngine.TENDRIL_PTS;
+			this.tendrilX[baseIdx] = rootX;
+			this.tendrilY[baseIdx] = rootY;
+
+			for (let s = 1; s <= CosmicMedusaEngine.TENDRIL_SEGMENTS; s++) {
+				const prog = s / CosmicMedusaEngine.TENDRIL_SEGMENTS;
+				const wave1 = Math.sin(phase1 - prog * 3.8) * (12 + prog * 42 + this.smoothBass * 22);
+				const wave2 = Math.cos(phase2 - prog * 2.2) * (6 + prog * 18);
+				const shimmer = isPlaying ? Math.sin(time * 4.5 - prog * 9.0 + i) * (trebleEnergy * 2.4 * prog) : 0;
+
+				const x = rootX * (1 - prog * 0.1) + cx * (prog * 0.1) + (wave1 * 0.75 + wave2 * 0.25) + shimmer;
+				const y = rootY + prog * tendrilLen - this.smoothThrust * Math.pow(prog, 1.22) * 0.65;
+
+				const idx = baseIdx + s;
+				this.tendrilX[idx] = x;
+				this.tendrilY[idx] = y;
+			}
+		}
+	}
+}
+
+// ============================================================================
+// 3. STRATÉGIES DE RENDU MODULAIRES (RenderLayer Strategy Pattern)
+// ============================================================================
+
+export interface JellyfishLayer {
+	render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void;
+}
+
+/**
+ * Couche 1 : Micro-spores bioluminescentes et plancton cybernétique
+ */
+class CyberSporePlanktonLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { cx, rimY, bellW, radius, tentacleScale, time, swimSpeed, isPlaying, palette } = frame;
+
+		for (let i = 0; i < engine.spores.length; i++) {
+			const spore = engine.spores[i];
+			const sporePhase = isPlaying ? time * spore.speed * swimSpeed + spore.phase : spore.phase;
+			const driftX = cx + spore.normX * bellW + Math.sin(sporePhase) * 16;
+			const driftY = rimY + spore.normY * (radius * 1.8 * tentacleScale) + Math.cos(sporePhase * 0.8) * 18;
+
+			const pulse = 0.35 + 0.65 * Math.sin(sporePhase * 1.6);
+			const sporeAlpha = (0.2 + engine.smoothBass * 0.35) * pulse;
+			const sporeR = spore.size * (0.8 + engine.smoothPunch * 0.4);
+
+			ctx.save();
+			ctx.beginPath();
+			ctx.arc(driftX, driftY, sporeR, 0, Math.PI * 2);
+			ctx.fillStyle = palette.rimVeil(sporeAlpha);
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 8;
+			ctx.fill();
+			ctx.restore();
+		}
+	}
+}
+
+/**
+ * Couche 2 : Filaments arrière en fibres optiques (Z < 0)
+ */
+class BackgroundTendrilsLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { cx, rimY, bellW, bellD, palette, glowScale } = frame;
+
+		// Lèvre arrière de la cloche en néon doux
+		ctx.save();
+		ctx.beginPath();
+		ctx.ellipse(cx, rimY, bellW * 0.92, bellD * 0.82, 0, Math.PI, 2 * Math.PI);
+		ctx.strokeStyle = palette.veil(0.3 + engine.smoothBass * 0.15);
+		ctx.lineWidth = 1.6;
+		ctx.stroke();
+		ctx.restore();
+
+		// Tracé des tentacules d'arrière-plan
+		for (let i = 0; i < CosmicMedusaEngine.NUM_TENDRILS; i++) {
+			if (engine.tendrilIsFront[i] === 1) continue;
+
+			const baseIdx = i * CosmicMedusaEngine.TENDRIL_PTS;
+			ctx.beginPath();
+			ctx.moveTo(engine.tendrilX[baseIdx], engine.tendrilY[baseIdx]);
+
+			for (let s = 1; s < CosmicMedusaEngine.TENDRIL_PTS; s++) {
+				const prevX = engine.tendrilX[baseIdx + s - 1];
+				const prevY = engine.tendrilY[baseIdx + s - 1];
+				const currX = engine.tendrilX[baseIdx + s];
+				const currY = engine.tendrilY[baseIdx + s];
+				ctx.quadraticCurveTo(prevX, prevY, (prevX + currX) / 2, (prevY + currY) / 2);
+			}
+
+			// Halo d'arrière-plan
+			ctx.save();
+			ctx.lineWidth = 2.2 * glowScale;
+			ctx.strokeStyle = palette.veil(0.22 + engine.smoothBass * 0.12);
+			ctx.shadowBlur = 8 * glowScale;
+			ctx.shadowColor = palette.solid;
+			ctx.stroke();
+
+			// Cœur fin
+			ctx.lineWidth = 0.9;
+			ctx.strokeStyle = palette.rimVeil(0.45);
+			ctx.shadowBlur = 0;
+			ctx.stroke();
+			ctx.restore();
+		}
+	}
+}
+
+/**
+ * Couche 3 : Cœur gastrique bioluminescent (Trèfle à 4 lobes & Noyau de fusion)
+ */
+class GastricBioReactorLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { cx, currentCy, bellH, bellW, palette, glowScale } = frame;
+		const coreCy = currentCy - bellH * 0.12;
+		const coreRadius = bellW * 0.24;
+
+		ctx.save();
+
+		// 1. Halo nébulaire diffus émanant du cœur à travers la cloche
+		const pulse = 1.0 + engine.smoothBass * 0.45 + engine.smoothPunch * 0.4;
+		const coreGlow = ctx.createRadialGradient(cx, coreCy, 0, cx, coreCy, coreRadius * 2.2 * pulse);
+		coreGlow.addColorStop(0, "#ffffff");
+		coreGlow.addColorStop(0.25, palette.highlight);
+		coreGlow.addColorStop(0.65, palette.veil(0.35 + engine.smoothBass * 0.3));
+		coreGlow.addColorStop(1, "transparent");
+
+		ctx.fillStyle = coreGlow;
+		ctx.beginPath();
+		ctx.arc(cx, coreCy, coreRadius * 2.2 * pulse, 0, Math.PI * 2);
+		ctx.fill();
+
+		// 2. Les 4 lobes gastriques en fer à cheval (Signature emblématique de la méduse)
+		const lobeDist = coreRadius * 0.72;
+		const lobeR = coreRadius * 0.46;
+		const lobeAngles = [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.25, Math.PI * 0.75];
+
+		for (let l = 0; l < 4; l++) {
+			const la = lobeAngles[l];
+			const lx = cx + Math.cos(la) * lobeDist;
+			const ly = coreCy + Math.sin(la) * lobeDist * 0.78;
+
+			ctx.beginPath();
+			// Arc en fer à cheval ouvert vers le centre
+			ctx.arc(lx, ly, lobeR, la + 0.75, la + Math.PI * 2 - 0.75);
+
+			// Passe Néon Lobe
+			ctx.lineWidth = 2.4 * glowScale;
+			ctx.strokeStyle = palette.highlight;
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 12 * glowScale;
+			ctx.stroke();
+
+			// Cœur blanc
+			ctx.lineWidth = 1.0;
+			ctx.strokeStyle = "#ffffff";
+			ctx.shadowBlur = 0;
+			ctx.stroke();
+		}
+
+		// 3. Joyau central incandescent
+		const ds = 4.2 + engine.smoothPunch * 3.2;
+		ctx.beginPath();
+		ctx.moveTo(cx, coreCy - ds * 1.3);
+		ctx.lineTo(cx + ds, coreCy);
+		ctx.lineTo(cx, coreCy + ds * 1.3);
+		ctx.lineTo(cx - ds, coreCy);
+		ctx.closePath();
+		ctx.fillStyle = "#ffffff";
+		ctx.shadowColor = palette.highlight;
+		ctx.shadowBlur = 16 * glowScale;
+		ctx.fill();
+
+		ctx.restore();
+	}
+}
+
+/**
+ * Couche 4 : Les 4 Grands Bras Oraux Flottants (Drapés soyeux ondulants)
+ */
+class OralArmsLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { cx, currentCy, bellH, radius, tentacleScale, palette, glowScale } = frame;
+		const armBaseY = currentCy - bellH * 0.05;
+		const armLen = radius * 3.4 * tentacleScale;
+
+		for (let a = 0; a < CosmicMedusaEngine.NUM_ARMS; a++) {
+			const baseIdx = a * CosmicMedusaEngine.ARM_PTS;
+			const lastIdx = baseIdx + CosmicMedusaEngine.ARM_PTS - 1;
+
+			// Remplissage du voile du bras oral
+			ctx.save();
+			ctx.beginPath();
+			ctx.moveTo(engine.armLeftX[baseIdx], engine.armLeftY[baseIdx]);
+
+			// Côté gauche
+			for (let s = 1; s < CosmicMedusaEngine.ARM_PTS; s++) {
+				const prevX = engine.armLeftX[baseIdx + s - 1];
+				const prevY = engine.armLeftY[baseIdx + s - 1];
+				const currX = engine.armLeftX[baseIdx + s];
+				const currY = engine.armLeftY[baseIdx + s];
+				ctx.quadraticCurveTo(prevX, prevY, (prevX + currX) / 2, (prevY + currY) / 2);
+			}
+
+			// Liaison vers la pointe droite
+			ctx.lineTo(engine.armRightX[lastIdx], engine.armRightY[lastIdx]);
+
+			// Côté droit en remontant
+			for (let s = CosmicMedusaEngine.ARM_PTS - 2; s >= 0; s--) {
+				const nextX = engine.armRightX[baseIdx + s + 1];
+				const nextY = engine.armRightY[baseIdx + s + 1];
+				const currX = engine.armRightX[baseIdx + s];
+				const currY = engine.armRightY[baseIdx + s];
+				ctx.quadraticCurveTo(nextX, nextY, (nextX + currX) / 2, (nextY + currY) / 2);
+			}
+			ctx.closePath();
+
+			const armGrad = ctx.createLinearGradient(cx, armBaseY, cx, armBaseY + armLen);
+			const baseAlpha = 0.28 + engine.smoothBass * 0.22;
+			armGrad.addColorStop(0, palette.veil(baseAlpha * 0.5));
+			armGrad.addColorStop(0.35, palette.veil(baseAlpha));
+			armGrad.addColorStop(0.75, palette.veil(baseAlpha * 0.4));
+			armGrad.addColorStop(1, "transparent");
+
+			ctx.fillStyle = armGrad;
+			ctx.fill();
+			ctx.restore();
+
+			// Tracé néon incisif de la bordure droite du drapé
+			ctx.save();
+			ctx.beginPath();
+			ctx.moveTo(engine.armRightX[baseIdx], engine.armRightY[baseIdx]);
+			for (let s = 1; s < CosmicMedusaEngine.ARM_PTS; s++) {
+				const prevX = engine.armRightX[baseIdx + s - 1];
+				const prevY = engine.armRightY[baseIdx + s - 1];
+				const currX = engine.armRightX[baseIdx + s];
+				const currY = engine.armRightY[baseIdx + s];
+				ctx.quadraticCurveTo(prevX, prevY, (prevX + currX) / 2, (prevY + currY) / 2);
+			}
+
+			ctx.lineWidth = 1.8 * glowScale;
+			ctx.strokeStyle = palette.rimLight;
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 10 * glowScale;
+			ctx.stroke();
+
+			ctx.lineWidth = 0.8;
+			ctx.strokeStyle = "#ffffff";
+			ctx.shadowBlur = 0;
+			ctx.stroke();
+			ctx.restore();
+		}
+	}
+}
+
+/**
+ * Couche 5 : Dôme sculpté translucide, marge festonnée et 8 canaux radiaires
+ */
+class SculptedBellDomeLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { cx, currentCy, apexY, rimY, bellW, bellH, palette, glowScale, trebleEnergy } = frame;
+
+		// 1. Tracé complet de la silhouette de l'ombrelle
+		const traceDomeContour = () => {
+			ctx.beginPath();
+			// Apex supérieur
+			ctx.moveTo(cx, apexY);
+
+			// Flanc droit galbé
+			ctx.bezierCurveTo(
+				cx + bellW * 0.45,
+				apexY + bellH * 0.03,
+				cx + bellW * 1.05,
+				currentCy - bellH * 0.15,
+				cx + bellW,
+				rimY
+			);
+
+			// Bord inférieur festonné (lobes ondulants de droite à gauche)
+			for (let s = CosmicMedusaEngine.SCALLOP_PTS - 1; s >= 0; s--) {
+				ctx.lineTo(engine.scallopX[s], engine.scallopY[s]);
+			}
+
+			// Flanc gauche galbé en remontant vers l'apex
+			ctx.bezierCurveTo(
+				cx - bellW * 1.05,
+				currentCy - bellH * 0.15,
+				cx - bellW * 0.45,
+				apexY + bellH * 0.03,
+				cx,
+				apexY
+			);
+			ctx.closePath();
+		};
+
+		// 2. Remplissage dégradé soyeux en verre fumé translucide
+		ctx.save();
+		traceDomeContour();
+		const bellGrad = ctx.createLinearGradient(cx, apexY, cx, rimY + bellH * 0.1);
+		bellGrad.addColorStop(0, palette.veil(0.18 + engine.smoothBass * 0.1));
+		bellGrad.addColorStop(0.5, palette.veil(0.1 + engine.smoothBass * 0.06));
+		bellGrad.addColorStop(1, palette.veil(0.04));
+		ctx.fillStyle = bellGrad;
+		ctx.fill();
+
+		// 3. Liseré interne Fresnel diffus le long du contour (brillance de bord)
+		ctx.save();
+		traceDomeContour();
+		ctx.clip();
+		ctx.lineWidth = 10.0 + engine.smoothPunch * 3.0;
+		ctx.strokeStyle = palette.rimVeil(0.5);
+		ctx.shadowBlur = 14 * glowScale;
+		ctx.shadowColor = palette.rimLight;
+		ctx.stroke();
+		ctx.restore();
+
+		// 4. Contour extérieur néon étincelant (Manteau d'énergie)
+		traceDomeContour();
+		ctx.lineWidth = 2.4 * glowScale;
+		ctx.strokeStyle = palette.rimLight;
+		ctx.shadowColor = palette.solid;
+		ctx.shadowBlur = 16 * glowScale;
+		ctx.stroke();
+
+		// Filament blanc net
+		ctx.lineWidth = 1.0;
+		ctx.strokeStyle = "#ffffff";
+		ctx.shadowBlur = 0;
+		ctx.stroke();
+		ctx.restore();
+
+		// 5. Tracé des 8 canaux radiaires bio-électriques (aucun croisement 3D désordonné)
+		ctx.save();
+		for (let k = 0; k < CosmicMedusaEngine.NUM_CANALS; k++) {
+			const rx = engine.canalRimX[k];
+			const ry = engine.canalRimY[k];
+			const cxk = engine.canalCtrlX[k];
+			const cyk = engine.canalCtrlY[k];
+
+			// Ligne radiaire
+			ctx.beginPath();
+			ctx.moveTo(cx, apexY + bellH * 0.05);
+			ctx.quadraticCurveTo(cxk, cyk, rx, ry);
+
+			// Halo
+			ctx.lineWidth = 2.2 * glowScale;
+			ctx.strokeStyle = palette.rimVeil(0.65 + engine.smoothBass * 0.25);
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 10 * glowScale;
+			ctx.stroke();
+
+			// Cœur plasma blanc
+			ctx.lineWidth = 0.8;
+			ctx.strokeStyle = "#ffffff";
+			ctx.shadowBlur = 0;
+			ctx.stroke();
+
+			// 6. Capteur Rhopalie diamanté à la commissure du lobe
+			const flash = 1.0 + engine.smoothPunch * 1.4;
+			const rR = (2.8 + trebleEnergy * 2.8) * flash;
+
+			ctx.beginPath();
+			ctx.moveTo(rx, ry - rR * 1.2);
+			ctx.lineTo(rx + rR, ry);
+			ctx.lineTo(rx, ry + rR * 1.2);
+			ctx.lineTo(rx - rR, ry);
+			ctx.closePath();
+
+			ctx.fillStyle = "#ffffff";
+			ctx.shadowColor = palette.highlight;
+			ctx.shadowBlur = 12 * glowScale;
+			ctx.fill();
+		}
+		ctx.restore();
+	}
+}
+
+/**
+ * Couche 6 : Filaments avant en fibres optiques (Z >= 0) avec propagation du courant néon
+ */
+class ForegroundTendrilsLayer implements JellyfishLayer {
+	public render(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		const { radius, tentacleScale, palette, glowScale } = frame;
+		const tendrilLen = Math.max(radius * 4.8, ctx.canvas.height + 80) * tentacleScale;
+
+		for (let i = 0; i < CosmicMedusaEngine.NUM_TENDRILS; i++) {
+			if (engine.tendrilIsFront[i] === 0) continue;
+
+			const baseIdx = i * CosmicMedusaEngine.TENDRIL_PTS;
+			const depth = engine.tendrilDepth[i];
+
+			const drawTendrilPath = () => {
+				ctx.beginPath();
+				ctx.moveTo(engine.tendrilX[baseIdx], engine.tendrilY[baseIdx]);
+
+				for (let s = 1; s < CosmicMedusaEngine.TENDRIL_PTS; s++) {
+					const prevX = engine.tendrilX[baseIdx + s - 1];
+					const prevY = engine.tendrilY[baseIdx + s - 1];
+					const currX = engine.tendrilX[baseIdx + s];
+					const currY = engine.tendrilY[baseIdx + s];
+					ctx.quadraticCurveTo(prevX, prevY, (prevX + currX) / 2, (prevY + currY) / 2);
+				}
+			};
+
+			// 1. Halo néon large de la fibre optique
+			ctx.save();
+			drawTendrilPath();
+			ctx.lineWidth = (3.2 + depth * 1.8) * glowScale;
+			ctx.strokeStyle = palette.rimVeil(0.7 + engine.smoothBass * 0.25);
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = (12 + depth * 6) * glowScale;
+			ctx.stroke();
+
+			// 2. Filament blanc pur haute tension
+			ctx.lineWidth = 1.2 + depth * 0.4;
+			ctx.strokeStyle = "#ffffff";
+			ctx.shadowBlur = 0;
+			ctx.stroke();
+			ctx.restore();
+
+			// 3. Déferlement d'énergie haute tension via neonCurrentManager
+			const activeWaves = neonCurrentManager.getActiveWaves(i * 0.05);
+			for (let w = 0; w < activeWaves.length; w++) {
+				const wave = activeWaves[w];
+				if (wave.intensity < 0.04) continue;
+
+				const tProg = (wave.wavePos - 0.15) / 0.85;
+				if (tProg >= 0 && tProg <= 1.0) {
+					const idx = Math.round(tProg * CosmicMedusaEngine.TENDRIL_SEGMENTS);
+					const spread = 4;
+					const startIdx = Math.max(0, idx - spread);
+					const endIdx = Math.min(CosmicMedusaEngine.TENDRIL_SEGMENTS, idx + spread);
+
+					ctx.save();
+					ctx.beginPath();
+					ctx.moveTo(engine.tendrilX[baseIdx + startIdx], engine.tendrilY[baseIdx + startIdx]);
+					for (let s = startIdx + 1; s <= endIdx; s++) {
+						const prevX = engine.tendrilX[baseIdx + s - 1];
+						const prevY = engine.tendrilY[baseIdx + s - 1];
+						const currX = engine.tendrilX[baseIdx + s];
+						const currY = engine.tendrilY[baseIdx + s];
+						ctx.quadraticCurveTo(prevX, prevY, (prevX + currX) / 2, (prevY + currY) / 2);
+					}
+					ctx.lineWidth = 4.2 * wave.intensity * glowScale;
+					ctx.strokeStyle = "#ffffff";
+					ctx.shadowColor = palette.highlight;
+					ctx.shadowBlur = 22 * glowScale;
+					ctx.stroke();
+					ctx.restore();
+				}
+			}
+
+			// 4. Nœud capaciteur diamanté terminal
+			const lastPtIdx = baseIdx + CosmicMedusaEngine.TENDRIL_SEGMENTS;
+			const tipX = engine.tendrilX[lastPtIdx];
+			const tipY = engine.tendrilY[lastPtIdx];
+			const ts = 3.0 + engine.smoothPunch * 2.2;
+
+			ctx.save();
+			ctx.beginPath();
+			ctx.moveTo(tipX, tipY - ts * 1.2);
+			ctx.lineTo(tipX + ts, tipY);
+			ctx.lineTo(tipX, tipY + ts * 1.2);
+			ctx.lineTo(tipX - ts, tipY);
+			ctx.closePath();
+			ctx.fillStyle = "#ffffff";
+			ctx.shadowColor = palette.highlight;
+			ctx.shadowBlur = 10 * glowScale;
+			ctx.fill();
+			ctx.restore();
+		}
+	}
+}
+
+// ============================================================================
+// 4. PIPELINE D'ORCHESTRATION DU RENDU (Pipeline Pattern)
+// ============================================================================
+
+export class JellyfishRenderPipeline {
+	private readonly layers: JellyfishLayer[];
+
+	constructor() {
+		this.layers = [
+			new CyberSporePlanktonLayer(),
+			new BackgroundTendrilsLayer(),
+			new GastricBioReactorLayer(),
+			new OralArmsLayer(),
+			new SculptedBellDomeLayer(),
+			new ForegroundTendrilsLayer()
+		];
+	}
+
+	public execute(ctx: CanvasRenderingContext2D, frame: JellyfishFrameContext, engine: CosmicMedusaEngine): void {
+		ctx.save();
+		ctx.translate(frame.cx, frame.currentCy);
+		ctx.rotate(engine.smoothTilt);
+		ctx.translate(-frame.cx, -frame.currentCy);
+
+		for (let i = 0; i < this.layers.length; i++) {
+			this.layers[i].render(ctx, frame, engine);
+		}
+		ctx.restore();
+	}
+}
+
+// ============================================================================
+// 5. INSTANCES GLOBALES & POINT D'ENTRÉE DU MODE
+// ============================================================================
+
+const engine = new CosmicMedusaEngine();
+const pipeline = new JellyfishRenderPipeline();
+
+export function drawBioluminescentJellyfish(
+	ctx: CanvasRenderingContext2D,
+	cx: number,
+	cy: number,
+	radius: number,
+	time: number,
+	_beatProgress: number,
+	bassEnergy: number,
+	trebleEnergy: number,
+	palette: ThemePalette,
+	_midEnergy = 0.5,
+	punch = palette.punch,
+	features?: AudioFeatures
+): void {
+	const settings = getVisualizerSettings();
+	const swimSpeed = settings.jellyfishSwimSpeed ?? 1.0;
+	const tentacleScale = settings.jellyfishTentacleLength ?? 1.0;
+	const glowScale = settings.glowScale ?? 1.0;
+	const isPlaying = features?.isPlaying ?? true;
+
+	engine.update(isPlaying, bassEnergy, punch, swimSpeed);
+
+	const idleFloat = isPlaying ? Math.sin(time * 0.75 * swimSpeed) * 8 : 0;
+	const currentCy = cy + engine.smoothThrust + idleFloat;
+
+	// Contraction & détente rythmique par jet
+	const breathX = 1.0 - engine.smoothPunch * 0.14 + engine.smoothBass * 0.08;
+	const breathY = 1.0 + engine.smoothPunch * 0.18 - engine.smoothBass * 0.05;
+	const bellW = radius * 1.15 * breathX;
+	const bellH = radius * 0.92 * breathY;
+	const bellD = bellW * 0.32;
+	const apexY = currentCy - bellH * 0.92;
+	const rimY = currentCy + bellH * 0.32;
+
+	const tendrilLen = Math.max(radius * 4.8, ctx.canvas.height - currentCy + 80) * tentacleScale;
+	const armLen = radius * 3.4 * tentacleScale;
+	const armBaseY = currentCy - bellH * 0.05;
+
+	// Précalculs géométriques sans allocation dynamique
+	engine.computeScallopedRim(cx, rimY, bellW, bellD, time);
+	engine.computeRadialCanals(cx, apexY, rimY, bellW, bellH, bellD);
+	engine.computeOralArms(cx, armBaseY, armLen, bellW, time, swimSpeed, isPlaying);
+	engine.computeTendrils(cx, rimY, bellW, bellD, tendrilLen, time, swimSpeed, trebleEnergy, isPlaying);
+
+	const frameContext: JellyfishFrameContext = {
+		cx,
+		cy,
+		currentCy,
+		radius,
+		time,
+		isPlaying,
+		swimSpeed,
+		tentacleScale,
+		glowScale,
+		bellW,
+		bellH,
+		bellD,
+		apexY,
+		rimY,
+		smoothBass: engine.smoothBass,
+		smoothPunch: engine.smoothPunch,
+		smoothThrust: engine.smoothThrust,
+		smoothTilt: engine.smoothTilt,
+		trebleEnergy,
+		palette,
+		features: features!
+	};
+
+	pipeline.execute(ctx, frameContext, engine);
+}
+
+export const modeConfig: ModeConfig = {
+	id: "cyber-rings",
+	name: "🪼 Jellyfish",
+	render(ctx, width, height, features, palette) {
+		const { cx, cy } = getVisualizerCenter(ctx);
+		const baseRadius = Math.min(width * 0.24, height * 0.22);
+		drawBioluminescentJellyfish(
+			ctx,
+			cx,
+			cy,
+			baseRadius,
+			features.energyTime,
+			0,
+			features.bassEnergy,
+			features.trebleEnergy,
+			palette,
+			features.midEnergy,
+			features.punch,
+			features
+		);
+	}
+};

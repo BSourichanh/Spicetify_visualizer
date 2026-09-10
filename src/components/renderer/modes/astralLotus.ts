@@ -82,22 +82,19 @@ export class AstralLotusEngine {
 		const bpm = tempo > 50 && tempo < 220 ? tempo : 120;
 		const tempoFactor = Math.sqrt(bpm / 120);
 
-		const activePunch = Math.max(0, (punch - 0.2) / 0.8);
-		const activeBass = Math.max(0, (bassEnergy - 0.28) / 0.72);
-		const activeBeat = Math.max(0, (beatIntensity - 0.3) / 0.7);
-
-		const rhythmPower = Math.min(1.0, activePunch * 0.7 + activeBass * 0.4 + activeBeat * 0.3);
+		// Sensibilité normalisée sans zone morte artificielle
+		const rhythmPower = Math.min(1.0, punch * 0.65 + bassEnergy * 0.45 + beatIntensity * 0.3);
 
 		const settings = getVisualizerSettings();
 		const rotMultiplier = (settings.lotusRotationScale ?? 1.0) * (settings.lotusReverse ? -1 : 1);
-		const dynamicBoost = Math.pow(rhythmPower, 2.2) * 0.52;
+		const dynamicBoost = Math.pow(rhythmPower, 1.4) * 0.65;
 		const targetSpeed = (0.025 + dynamicBoost) * tempoFactor * rotMultiplier;
 
 		const lerpRate = targetSpeed > this.currentSpeed ? 3.5 : 1.6;
 		this.currentSpeed += (targetSpeed - this.currentSpeed) * Math.min(1.0, dt * lerpRate);
 		this.currentRotation += this.currentSpeed * dt;
 
-		const counterSpeed = (0.008 + Math.pow(rhythmPower, 2.2) * 0.16) * tempoFactor;
+		const counterSpeed = (0.008 + Math.pow(rhythmPower, 1.4) * 0.2) * tempoFactor;
 		this.counterAngle += counterSpeed * dt;
 	}
 }
@@ -116,15 +113,15 @@ export interface LotusLayer {
 class PetalTiersLayer implements LotusLayer {
 	public render(ctx: CanvasRenderingContext2D, frame: AstralLotusFrameContext): void {
 		const { radius, time, counterAngle, bassEnergy, punch, palette } = frame;
-		const petalScale = 1.0 + bassEnergy * 0.26 + punch * 0.22;
+		const petalScale = 1.0 + bassEnergy * 0.32 + punch * 0.28;
 
 		for (let tIdx = 0; tIdx < LOTUS_TIERS.length; tIdx++) {
 			const tier = LOTUS_TIERS[tIdx];
 			const tierRot = tIdx * (Math.PI / tier.count) + counterAngle * tier.direction;
 			const tierCurrent = neonCurrentManager.getIntensityAt(tier.dist, 0, 0.2);
 
-			const pLen = radius * tier.rRatio * (tIdx === 0 ? petalScale : 1 + bassEnergy * 0.2);
-			const baseWidth = tier.widthRatio * (1 + punch * 0.14);
+			const pLen = radius * tier.rRatio * (tIdx === 0 ? petalScale : 1 + bassEnergy * 0.24 + punch * 0.16);
+			const baseWidth = tier.widthRatio * (1 + punch * 0.18);
 
 			for (let i = 0; i < tier.count; i++) {
 				const a = tierRot + (i / tier.count) * Math.PI * 2;

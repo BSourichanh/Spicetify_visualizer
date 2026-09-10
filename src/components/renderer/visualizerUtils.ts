@@ -26,3 +26,6 @@ export * from "./core/cosmicOrigin";
 
 // High-Fidelity Multi-Band Frequency Separation
 export * from "./core/frequencyBands";
+
+// Universal Cyberpunk Glitch Post-Processing Engine
+export * from "./core/glitchFx";

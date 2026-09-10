@@ -147,36 +147,35 @@ export class BigBangPhysicsEngine {
 
 		// Suivi d'enveloppe asymétrique : Attaque ultra-réactive sur le kick, déclin musical fluide
 		const bassDelta = bass - this.smoothBass;
-		this.smoothBass += bassDelta * (bassDelta > 0 ? 0.44 : 0.16);
+		this.smoothBass += bassDelta * (bassDelta > 0 ? 0.42 : 0.16);
 
 		const punchDelta = punch - this.smoothPunch;
-		this.smoothPunch += punchDelta * (punchDelta > 0 ? 0.68 : 0.22);
+		this.smoothPunch += punchDelta * (punchDelta > 0 ? 0.65 : 0.22);
 
 		// Modulation dynamique de la vitesse selon l'intensité des basses
 		const useDynamicSpeed = settings?.bigBangDynamicSpeed ?? true;
 		this.bassSpeedMult = useDynamicSpeed
-			? 0.45 + Math.pow(this.smoothBass, 1.3) * 2.5 + this.smoothPunch * 1.5
+			? 0.5 + Math.pow(this.smoothBass, 1.2) * 2.2 + this.smoothPunch * 1.4
 			: 1.0;
 
 		const effectiveSpeed = speedScale * this.bassSpeedMult;
 
 		this.cosmicTime += 0.024 * effectiveSpeed;
 		this.rotation += (0.0035 + this.smoothPunch * 0.004) * effectiveSpeed;
-		this.singularityPulse += (0.022 + this.smoothBass * 0.03) * effectiveSpeed;
+		this.singularityPulse += (0.02 + this.smoothBass * 0.028 + this.smoothPunch * 0.035) * effectiveSpeed;
 
 		const now = Date.now();
 		const waveEnabled = settings?.bigBangWaveEnabled ?? true;
 		const threshold = settings?.bigBangWaveThreshold ?? 0.68;
 
-		// Détection musicale intelligente : impact combiné de basse et attaque transitoire
-		const bassImpact = bass * 0.62 + punch * 0.58 + transient * 0.32;
+		// Détection musicale normalisée : impact combiné de basse et attaque transitoire
+		const bassImpact = bass * 0.55 + punch * 0.6 + transient * 0.35;
 		const isHighBassExplosion =
-			(bass >= threshold && (punch > 0.24 || transient > 0.12 || punchDelta > 0.04)) ||
-			bassImpact >= threshold ||
-			bass >= Math.min(1.0, threshold * 1.08) ||
-			punch >= Math.min(1.0, threshold * 0.88);
+			punch > Math.min(0.85, threshold * 0.8) ||
+			(bass >= threshold && (punch > 0.2 || transient > 0.1 || punchDelta > 0.04)) ||
+			bassImpact >= threshold * 0.9;
 
-		const cooldown = Math.max(200, Math.round(300 / speedScale));
+		const cooldown = Math.max(200, Math.round(280 / speedScale));
 		if (waveEnabled && isHighBassExplosion && now - this.lastPunchTime > cooldown) {
 			this.lastPunchTime = now;
 			this.spawnShockwave(
@@ -239,23 +238,27 @@ class InflationWavesLayer implements BigBangLayer {
 			const curR = wave.radius;
 			if (curR <= 0) continue;
 
-			const shockGrad = ctx.createRadialGradient(cx, cy, Math.max(0, curR - wave.width), cx, cy, curR + 8);
+			const shockGrad = ctx.createRadialGradient(cx, cy, Math.max(0, curR - wave.width), cx, cy, curR + 12);
 			shockGrad.addColorStop(0, "transparent");
-			shockGrad.addColorStop(0.3, palette.veil(wave.alpha * 0.35));
-			shockGrad.addColorStop(0.85, palette.rimVeil(wave.alpha * 0.8));
+			shockGrad.addColorStop(0.25, palette.veil(wave.alpha * 0.5));
+			shockGrad.addColorStop(0.8, palette.rimVeil(wave.alpha * 0.95));
 			shockGrad.addColorStop(0.95, palette.highlight);
 			shockGrad.addColorStop(1, "transparent");
 
 			ctx.beginPath();
-			ctx.arc(cx, cy, curR + 8, 0, Math.PI * 2);
+			ctx.arc(cx, cy, curR + 12, 0, Math.PI * 2);
 			ctx.fillStyle = shockGrad;
 			ctx.fill();
 
+			ctx.save();
 			ctx.beginPath();
 			ctx.arc(cx, cy, curR, 0, Math.PI * 2);
-			ctx.lineWidth = 1.8 + wave.alpha * 1.5;
-			ctx.strokeStyle = palette.rimLight;
+			ctx.lineWidth = 2.4 + wave.alpha * 2.0;
+			ctx.strokeStyle = palette.highlight;
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 14;
 			ctx.stroke();
+			ctx.restore();
 		}
 	}
 }
@@ -296,19 +299,22 @@ class PrimordialGasLayer implements BigBangLayer {
 			ctx.closePath();
 
 			const lobeGrad = ctx.createLinearGradient(0, 0, 0, lReach);
-			const lobeAlpha = 0.15 + engine.smoothBass * 0.28 + (l % 2 === 0 ? engine.smoothPunch * 0.25 : 0);
+			const lobeAlpha = 0.26 + engine.smoothBass * 0.38 + (l % 2 === 0 ? engine.smoothPunch * 0.32 : 0);
 
-			lobeGrad.addColorStop(0, palette.veil(lobeAlpha * 1.25));
-			lobeGrad.addColorStop(0.35, palette.veil(lobeAlpha));
-			lobeGrad.addColorStop(0.75, palette.veil(lobeAlpha * 0.35));
+			lobeGrad.addColorStop(0, palette.rimVeil(lobeAlpha * 1.25));
+			lobeGrad.addColorStop(0.3, palette.veil(lobeAlpha));
+			lobeGrad.addColorStop(0.7, palette.veil(lobeAlpha * 0.45));
 			lobeGrad.addColorStop(1, "transparent");
 
 			ctx.fillStyle = lobeGrad;
 			ctx.fill();
 
-			ctx.lineWidth = 1.0;
-			ctx.strokeStyle = palette.rimVeil(lobeAlpha * 0.65);
+			ctx.lineWidth = 1.4;
+			ctx.strokeStyle = palette.rimLight;
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 8;
 			ctx.stroke();
+			ctx.shadowBlur = 0;
 
 			ctx.restore();
 		}
@@ -350,16 +356,20 @@ class CosmicJetsLayer implements BigBangLayer {
 			}
 
 			const rayGrad = ctx.createLinearGradient(0, 0, 0, rayLen);
-			const rayAlpha = 0.2 + engine.smoothBass * 0.38 + (r % 3 === 0 ? engine.smoothPunch * 0.42 : 0);
+			const rayAlpha = 0.35 + engine.smoothBass * 0.45 + (r % 3 === 0 ? engine.smoothPunch * 0.45 : 0);
 
-			rayGrad.addColorStop(0, palette.highlight);
-			rayGrad.addColorStop(0.15, palette.rimLight);
-			rayGrad.addColorStop(0.5, palette.veil(rayAlpha));
+			rayGrad.addColorStop(0, "#ffffff");
+			rayGrad.addColorStop(0.12, palette.highlight);
+			rayGrad.addColorStop(0.4, palette.rimLight);
+			rayGrad.addColorStop(0.75, palette.veil(rayAlpha));
 			rayGrad.addColorStop(1, "transparent");
 
-			ctx.lineWidth = 1.4 + (r % 2 === 0 ? 1.0 : 0);
+			ctx.lineWidth = 1.8 + (r % 2 === 0 ? 1.4 : 0);
 			ctx.strokeStyle = rayGrad;
+			ctx.shadowColor = palette.solid;
+			ctx.shadowBlur = 10;
 			ctx.stroke();
+			ctx.shadowBlur = 0;
 
 			if (
 				mainNeonWave &&
@@ -368,10 +378,11 @@ class CosmicJetsLayer implements BigBangLayer {
 				mainNeonWave.wavePos <= 1.0
 			) {
 				const packetDist = mainNeonWave.wavePos * rayLen;
-				const pR = 8.0 * mainNeonWave.intensity;
+				const pR = 9.0 * mainNeonWave.intensity;
 				const pGrad = ctx.createRadialGradient(0, packetDist, 0, 0, packetDist, pR);
-				pGrad.addColorStop(0, palette.highlight);
-				pGrad.addColorStop(0.4, palette.rimVeil(0.6));
+				pGrad.addColorStop(0, "#ffffff");
+				pGrad.addColorStop(0.35, palette.highlight);
+				pGrad.addColorStop(0.7, palette.rimVeil(0.75));
 				pGrad.addColorStop(1, "transparent");
 
 				ctx.fillStyle = pGrad;
@@ -396,30 +407,31 @@ class StellarNucleosynthesisLayer implements BigBangLayer {
 			const curX = cx + Math.cos(seed.angle) * seed.dist;
 			const curY = cy + Math.sin(seed.angle) * seed.dist;
 
-			const pulse = 0.5 + 0.5 * Math.sin(time * 3.0 + seed.phase);
-			const seedAlpha = (0.35 + engine.smoothBass * 0.55) * pulse;
-			const seedR = seed.size * (0.8 + engine.smoothPunch * 0.8 + engine.smoothBass * 0.4);
+			const pulse = 0.55 + 0.45 * Math.sin(time * 3.0 + seed.phase);
+			const seedAlpha = (0.45 + engine.smoothBass * 0.55) * pulse;
+			const seedR = seed.size * (0.95 + engine.smoothPunch * 0.9 + engine.smoothBass * 0.45);
 
-			const sGrad = ctx.createRadialGradient(curX, curY, 0, curX, curY, seedR * 2.2);
-			sGrad.addColorStop(0, palette.highlight);
-			sGrad.addColorStop(0.35, palette.rimVeil(seedAlpha));
+			const sGrad = ctx.createRadialGradient(curX, curY, 0, curX, curY, seedR * 2.4);
+			sGrad.addColorStop(0, "#ffffff");
+			sGrad.addColorStop(0.3, palette.highlight);
+			sGrad.addColorStop(0.65, palette.rimVeil(seedAlpha));
 			sGrad.addColorStop(1, "transparent");
 
 			ctx.fillStyle = sGrad;
 			ctx.beginPath();
-			ctx.arc(curX, curY, seedR * 2.2, 0, Math.PI * 2);
+			ctx.arc(curX, curY, seedR * 2.4, 0, Math.PI * 2);
 			ctx.fill();
 
-			if (engine.smoothPunch > 0.18) {
-				const tailLen = seed.radialSpeed * 9.0 * (engine.smoothPunch + engine.smoothBass * 0.4);
+			if (engine.smoothPunch > 0.15) {
+				const tailLen = seed.radialSpeed * 11.0 * (engine.smoothPunch + engine.smoothBass * 0.4);
 				const tailX = curX - Math.cos(seed.angle) * tailLen;
 				const tailY = curY - Math.sin(seed.angle) * tailLen;
 
 				ctx.beginPath();
 				ctx.moveTo(curX, curY);
 				ctx.lineTo(tailX, tailY);
-				ctx.lineWidth = 1.2;
-				ctx.strokeStyle = palette.rimVeil(seedAlpha * 0.7);
+				ctx.lineWidth = 1.6;
+				ctx.strokeStyle = palette.highlight;
 				ctx.stroke();
 			}
 		}
@@ -433,18 +445,19 @@ class SingularityCoreLayer implements BigBangLayer {
 	public render(ctx: CanvasRenderingContext2D, frame: BigBangFrameContext, engine: BigBangPhysicsEngine): void {
 		const { cx, cy, baseR, time, palette } = frame;
 
-		const horizonR = baseR * (0.34 + engine.smoothBass * 0.52 + engine.smoothPunch * 0.45);
-		const horizonGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, horizonR);
-		const hAlpha = 0.4 + engine.smoothBass * 0.45 + engine.smoothPunch * 0.35;
+		const horizonR = baseR * (0.38 + engine.smoothBass * 0.52 + engine.smoothPunch * 0.45);
+		const horizonGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, horizonR * 1.25);
+		const hAlpha = 0.55 + engine.smoothBass * 0.45 + engine.smoothPunch * 0.35;
 
-		horizonGrad.addColorStop(0, palette.highlight);
-		horizonGrad.addColorStop(0.18, palette.rimVeil(hAlpha));
-		horizonGrad.addColorStop(0.55, palette.veil(hAlpha * 0.45));
+		horizonGrad.addColorStop(0, "#ffffff");
+		horizonGrad.addColorStop(0.15, palette.highlight);
+		horizonGrad.addColorStop(0.35, palette.rimVeil(hAlpha));
+		horizonGrad.addColorStop(0.7, palette.veil(hAlpha * 0.5));
 		horizonGrad.addColorStop(1, "transparent");
 
 		ctx.fillStyle = horizonGrad;
 		ctx.beginPath();
-		ctx.arc(cx, cy, horizonR, 0, Math.PI * 2);
+		ctx.arc(cx, cy, horizonR * 1.25, 0, Math.PI * 2);
 		ctx.fill();
 
 		const numRings = 3;
@@ -452,19 +465,20 @@ class SingularityCoreLayer implements BigBangLayer {
 			const ringR = horizonR * (0.28 * k + Math.sin(time * 2.5 + k) * 0.04);
 			ctx.beginPath();
 			ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-			ctx.lineWidth = 2.0 - k * 0.3 + engine.smoothPunch * 2.5 + engine.smoothBass * 1.2;
-			ctx.strokeStyle = k === 1 ? palette.highlight : palette.rimLight;
-			ctx.shadowBlur = 10;
+			ctx.lineWidth = 2.4 - k * 0.3 + engine.smoothPunch * 2.8 + engine.smoothBass * 1.4;
+			ctx.strokeStyle = k === 1 ? "#ffffff" : palette.highlight;
+			ctx.shadowBlur = 14;
 			ctx.shadowColor = palette.solid;
 			ctx.stroke();
 			ctx.shadowBlur = 0;
 		}
 
-		const coreR = 16 + engine.smoothPunch * 38 + engine.smoothBass * 24;
+		const coreR = 18 + engine.smoothPunch * 42 + engine.smoothBass * 28;
 		const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
 		coreGrad.addColorStop(0, "#ffffff");
-		coreGrad.addColorStop(0.35, palette.highlight);
-		coreGrad.addColorStop(0.75, palette.solid);
+		coreGrad.addColorStop(0.3, "#ffffff");
+		coreGrad.addColorStop(0.55, palette.highlight);
+		coreGrad.addColorStop(0.85, palette.solid);
 		coreGrad.addColorStop(1, "transparent");
 
 		ctx.fillStyle = coreGrad;
@@ -496,8 +510,9 @@ class DiffractionSpikesLayer implements BigBangLayer {
 			ctx.closePath();
 
 			const spGrad = ctx.createLinearGradient(0, 0, 0, spikeLen);
-			spGrad.addColorStop(0, palette.highlight);
-			spGrad.addColorStop(0.3, palette.rimVeil(0.6));
+			spGrad.addColorStop(0, "#ffffff");
+			spGrad.addColorStop(0.2, palette.highlight);
+			spGrad.addColorStop(0.55, palette.rimVeil(0.75));
 			spGrad.addColorStop(1, "transparent");
 
 			ctx.fillStyle = spGrad;

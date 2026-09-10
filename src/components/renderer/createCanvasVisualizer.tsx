@@ -7,6 +7,7 @@ import {
 	buildAmplitudeCurve,
 	drawBackgroundShockwave,
 	drawBigBangAmbient,
+	drawCyberGlitch,
 	drawFireflies,
 	extractAudioFeatures,
 	getThemeColor,
@@ -97,13 +98,7 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 
 					const rawFeatures = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
 					const bassEnergy = isPlaying
-						? Math.max(
-								0.05,
-								Math.min(
-									1.0,
-									rawFeatures.bassEnergy * settings.punchScale * (settings.bassScale ?? 1.0)
-								)
-							)
+						? Math.max(0.05, Math.min(1.0, rawFeatures.bassEnergy * (settings.bassScale ?? 1.0)))
 						: 0.05;
 					const punch = isPlaying ? Math.max(0, Math.min(1.0, rawFeatures.punch * settings.punchScale)) : 0;
 					const trebleEnergy = isPlaying
@@ -184,6 +179,11 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 
 					render(ctx, width, height, features, palette, data.audioAnalysis);
 					ctx.restore();
+
+					// 5. Post-traitement Glitch Cyberpunk Universel (actif sur tous les modèles)
+					if (settings.glitchEnabled) {
+						drawCyberGlitch(ctx, width, height, features, palette, settings);
+					}
 				} catch (err) {
 					console.error(`[Visualizer] ${modeName} render error:`, err);
 				}

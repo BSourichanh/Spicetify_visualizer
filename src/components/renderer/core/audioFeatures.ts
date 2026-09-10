@@ -94,12 +94,24 @@ export function buildAmplitudeCurve(analysis?: SpotifyAudioAnalysis): CurveEntry
 	return curve;
 }
 
+// Buffers IIR persistants pour le lissage continu des chromas et du timbre (Zero-Allocation)
+const smoothedPitches = new Float32Array(12).fill(0.1);
+const smoothedTimbre = new Float32Array(12).fill(0);
+let runningPeakAmp = 0.55;
+
 export function extractAudioFeatures(
 	analysis: SpotifyAudioAnalysis | undefined,
 	amplitudeCurve: CurveEntry[],
 	progress: number
 ): AudioFeatures {
 	const safeProgress = Number.isFinite(progress) ? Math.max(0, progress) : 0;
+
+	// 1. Normalisation automatique de gain (AGC) basée sur la sonie globale du morceau Spotify
+	// Référence : -9.0 dB (moyenne de mastering streaming moderne)
+	const trackLoudness = Number.isFinite(analysis?.track?.loudness) ? analysis!.track.loudness : -9.0;
+	// Gain d'égalisation dynamique : compense les morceaux calmes (-18dB -> +6dB) sans saturer l'EDM (-4dB -> -1.5dB)
+	const loudnessCompensationDb = Math.max(-6.0, Math.min(10.0, -9.0 - trackLoudness));
+	const loudnessGain = Math.pow(10, (loudnessCompensationDb * 0.42) / 20);
 
 	let rawAmp = 0;
 	let rawSmooth = 0;
@@ -112,12 +124,21 @@ export function extractAudioFeatures(
 		} catch {}
 	}
 
-	const amplitude = Math.max(0, Math.min(1, Math.pow(rawAmp, 0.6) * 1.6 - 0.08));
-	const smoothAmp = Math.max(0, Math.min(1, Math.pow(rawSmooth, 0.6) * 1.5 - 0.08));
+	// Suivi adaptatif du pic d'amplitude pour garantir une dynamique pleine échelle [0.0, 1.0]
+	const currentInstantPeak = Math.max(rawAmp * loudnessGain, 0.22);
+	runningPeakAmp = Math.max(currentInstantPeak, runningPeakAmp * 0.9975); // déclin très lent (~6-8s)
+	const effectiveHeadroom = Math.max(0.35, runningPeakAmp);
 
-	let pitches = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
-	let timbre = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	const normalizedRawAmp = (rawAmp * loudnessGain) / effectiveHeadroom;
+	const normalizedSmoothAmp = (rawSmooth * loudnessGain) / effectiveHeadroom;
+
+	const amplitude = Math.max(0, Math.min(1.0, Math.pow(normalizedRawAmp, 0.72) * 1.45 - 0.04));
+	const smoothAmp = Math.max(0, Math.min(1.0, Math.pow(normalizedSmoothAmp, 0.72) * 1.35 - 0.04));
+
+	let rawPitches = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+	let rawTimbre = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 	let segTransient = 0;
+
 	if (analysis?.segments && analysis.segments.length > 0) {
 		try {
 			const segIndex = Math.max(
@@ -129,30 +150,38 @@ export function extractAudioFeatures(
 			);
 			const segment = analysis.segments[segIndex];
 			if (segment?.pitches && Array.isArray(segment.pitches)) {
-				pitches = segment.pitches.map(p => {
+				rawPitches = segment.pitches.map(p => {
 					if (!Number.isFinite(p)) return 0.1;
-					return Math.max(0, Math.min(1, Math.pow(Math.max(0, p), 1.6)));
+					return Math.max(0, Math.min(1, Math.pow(Math.max(0, p), 1.5)));
 				});
 			}
 			if (segment?.timbre && Array.isArray(segment.timbre)) {
-				timbre = segment.timbre.map(t => (Number.isFinite(t) ? t : 0));
+				rawTimbre = segment.timbre.map(t => (Number.isFinite(t) ? t : 0));
 			}
 
 			// Attaque transitoire instantanée sur l'analyse de segment Spotify (kicks / drums)
 			const segTime = safeProgress - segment.start;
 			const maxTime = Math.max(0.02, segment.loudness_max_time ?? 0.06);
-			if (segTime >= 0 && segTime < maxTime + 0.14) {
+			if (segTime >= 0 && segTime < maxTime + 0.18) {
 				const attackDb = Math.max(0, (segment.loudness_max ?? -20) - (segment.loudness_start ?? -40));
-				const normAttack = Math.min(1, attackDb / 22);
-				// Sur les morceaux masterisés et compressés (drops), le delta dB est faible mais
-				// l'énergie sonore absolue (-8 dB à 0 dB) est colossale
-				const absLoudness = Math.max(0, Math.min(1, ((segment.loudness_max ?? -25) + 26) / 22));
-				const effectiveAttack = Math.max(normAttack, normAttack * 0.4 + absLoudness * 0.65);
-				const decay = Math.max(0, 1 - segTime / (maxTime + 0.14));
+				const normAttack = Math.min(1.0, attackDb / 20);
+				const absLoudness = Math.max(0, Math.min(1.0, ((segment.loudness_max ?? -25) + 26) / 22));
+				const effectiveAttack = Math.max(normAttack, normAttack * 0.45 + absLoudness * 0.65);
+				// Décroissance exponentielle analogique soyeuse (pas de coupure brutale)
+				const decay = Math.exp(-segTime / (maxTime * 0.7 + 0.08));
 				segTransient = effectiveAttack * decay;
 			}
 		} catch {}
 	}
+
+	// Lissage IIR passe-bas des chromas et du timbre pour éliminer les sauts de segments
+	const pitchIIR = 0.28;
+	for (let p = 0; p < 12; p++) {
+		smoothedPitches[p] += (rawPitches[p] - smoothedPitches[p]) * pitchIIR;
+		smoothedTimbre[p] += (rawTimbre[p] - smoothedTimbre[p]) * pitchIIR;
+	}
+	const pitches = Array.from(smoothedPitches);
+	const timbre = Array.from(smoothedTimbre);
 
 	let beatPulse = 0;
 	let beatPunch = 0;
@@ -171,15 +200,18 @@ export function extractAudioFeatures(
 				const dur = Math.max(0.2, currentBeat.duration || 0.5);
 				if (timeSinceBeat >= 0 && timeSinceBeat < dur) {
 					const conf = currentBeat.confidence ?? 0.85;
-					// Impact sec et percutant sur les 120 premières ms (vrai punch physique)
-					const punchDur = Math.min(0.13, dur * 0.35);
-					if (timeSinceBeat < punchDur) {
-						// Amplification physique du kick en fonction de l'amplitude globale
-						const dropBoost = 0.72 + amplitude * 0.65;
-						beatPunch = Math.pow(1 - timeSinceBeat / punchDur, 1.6) * conf * dropBoost;
+					// Impact sec et percutant avec attaque immédiate et déclin exponentiel
+					const punchDur = Math.min(0.13, dur * 0.32);
+					const dropBoost = 0.75 + amplitude * 0.55;
+
+					if (timeSinceBeat <= punchDur) {
+						beatPunch = Math.pow(1 - timeSinceBeat / punchDur, 1.5) * conf * dropBoost;
+					} else {
+						// Décroissance exponentielle après le pic (amorti analogique)
+						beatPunch = Math.exp(-(timeSinceBeat - punchDur) / 0.12) * conf * dropBoost * 0.35;
 					}
-					// Décroissance résonante de la basse sur le reste du beat
-					beatPulse = Math.pow(1 - timeSinceBeat / dur, 2.2) * conf;
+					// Résonance de basse sur la durée du temps
+					beatPulse = Math.exp(-timeSinceBeat / (dur * 0.45)) * conf;
 				}
 			}
 		} catch {}
@@ -197,19 +229,19 @@ export function extractAudioFeatures(
 	const spectralCentroid = Math.max(0, Math.min(1, (timbre[1] + 50) / 110));
 
 	// Punch : impact physique instantané (kick / caisse claire / drops)
-	const punch = Math.max(0, Math.min(1, beatPunch * 0.78 + segTransient * 0.45));
+	const punch = Math.max(0, Math.min(1.0, beatPunch * 0.76 + segTransient * 0.46));
 
-	// Bass Energy : Juste milieu dynamique (plage 0.12 repos -> 1.0 kick fort, sans blocage mou)
-	const rawBass = amplitude * 0.34 + beatPulse * 0.32 + punch * 0.28 + subTimbre * 0.14 + chromaBass * 0.12;
-	const bassEnergy = Math.max(0.12, Math.min(1.0, Math.pow(rawBass, 0.92) * 1.32));
+	// Bass Energy : Juste milieu dynamique normalisé (plage 0.12 repos -> 1.0 kick fort)
+	const rawBass = amplitude * 0.35 + beatPulse * 0.32 + punch * 0.28 + subTimbre * 0.15 + chromaBass * 0.12;
+	const bassEnergy = Math.max(0.12, Math.min(1.0, Math.pow(rawBass, 0.9) * 1.3));
 
 	// Mid Energy : harmoniques mélodiques & corps musical (plage 0.15 -> 0.95)
-	const rawMid = amplitude * 0.4 + chromaMid * 0.35 + smoothAmp * 0.25;
-	const midEnergy = Math.max(0.15, Math.min(0.95, rawMid * 1.22));
+	const rawMid = amplitude * 0.38 + chromaMid * 0.36 + smoothAmp * 0.26;
+	const midEnergy = Math.max(0.15, Math.min(0.95, rawMid * 1.2));
 
-	// Treble Energy : étincelles, brillance et cils vibratiles (plage 0.10 -> 0.90)
+	// Treble Energy : étincelles, brillance et cils vibratiles (plage 0.10 -> 0.92)
 	const rawTreble = amplitude * 0.28 + chromaTreble * 0.36 + spectralCentroid * 0.36;
-	const trebleEnergy = Math.max(0.1, Math.min(0.9, rawTreble * 1.18));
+	const trebleEnergy = Math.max(0.1, Math.min(0.92, rawTreble * 1.2));
 
 	const vocalEnergy = midEnergy * 0.75 + trebleEnergy * 0.25;
 	const transientEnergy = Math.max(0, amplitude - smoothAmp);
@@ -227,7 +259,6 @@ export function extractAudioFeatures(
 	}
 
 	// 4. Analyse des sections structurelles et humeur musicale (Valence / Énergie)
-	const trackLoudness = Number.isFinite(analysis?.track?.loudness) ? analysis!.track.loudness : -10;
 	const trackMode = analysis?.track?.mode ?? 1;
 
 	let currentSection: any = null;

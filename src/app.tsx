@@ -44,7 +44,7 @@ export default function App(props: {
 		} catch {}
 
 		const available = Object.keys(RENDERERS);
-		if (available.includes("cyber-rings")) return "cyber-rings";
+		if (available.includes("neon-cat")) return "neon-cat";
 		if (available.includes("kaleido")) return "kaleido";
 		return available[0] || "random";
 	});

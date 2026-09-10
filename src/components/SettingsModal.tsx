@@ -27,9 +27,9 @@ const COLOR_PRESETS = [
 
 const SPECIFIC_MODELS = [
 	{ id: "all", name: "Tous", icon: "📑" },
+	{ id: "neon-cat", name: "Cyber Neko", icon: "🐱" },
 	{ id: "spectrum", name: "Liquid Spectrum", icon: "🌊" },
 	{ id: "kaleido", name: "Astral Lotus", icon: "🌸" },
-	{ id: "cyber-rings", name: "Bioluminescent Jellyfish", icon: "🪼" },
 	{ id: "big-bang", name: "Big Bang", icon: "💥" }
 ];
 
@@ -655,7 +655,66 @@ export default function SettingsModal(props: SettingsModalProps) {
 							)}
 						</div>
 
-						{/* 7. CYCLES & TRANSITIONS */}
+						{/* 7. EFFET GLITCH CYBERPUNK (TOUS LES MODÈLES) */}
+						<div className={styles.section_title}>⚡ Effet Glitch Cyberpunk (Tous les Modèles)</div>
+						<div className={styles.section}>
+							<div className={styles.control_header}>
+								<span>⚡ Activer l'Effet Glitch & Distorsions</span>
+								<button
+									className={`${styles.toggle_btn} ${settings.glitchEnabled ? styles.active : ""}`}
+									onClick={() => handleToggleChange("glitchEnabled")}
+								>
+									{settings.glitchEnabled ? "ON" : "OFF"}
+								</button>
+							</div>
+
+							{settings.glitchEnabled && (
+								<>
+									{/* Intensité du Glitch */}
+									<div className={styles.control_row} style={{ marginTop: "12px" }}>
+										<div className={styles.control_header}>
+											<span>💥 Intensité du Glitch (Kicks & Drops)</span>
+											<span className={styles.badge}>{settings.glitchIntensity.toFixed(2)}x</span>
+										</div>
+										<input
+											type="range"
+											min="0.2"
+											max="2.5"
+											step="0.05"
+											value={settings.glitchIntensity}
+											className={styles.slider}
+											onChange={e =>
+												handleSliderChange("glitchIntensity", parseFloat(e.target.value))
+											}
+										/>
+									</div>
+
+									{/* Dispersion chromatique RVB */}
+									<div className={styles.control_header} style={{ marginTop: "12px" }}>
+										<span>🌈 Dispersion Chromatique RVB (Split Holographique)</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.glitchAberration ? styles.active : ""}`}
+											onClick={() => handleToggleChange("glitchAberration")}
+										>
+											{settings.glitchAberration ? "ON" : "OFF"}
+										</button>
+									</div>
+
+									{/* Lignes de balayage CRT & Tracking VHS */}
+									<div className={styles.control_header} style={{ marginTop: "12px" }}>
+										<span>📺 Lignes de Balayage CRT & Tracking VHS</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.glitchScanlines ? styles.active : ""}`}
+											onClick={() => handleToggleChange("glitchScanlines")}
+										>
+											{settings.glitchScanlines ? "ON" : "OFF"}
+										</button>
+									</div>
+								</>
+							)}
+						</div>
+
+						{/* 8. CYCLES & TRANSITIONS */}
 						<div className={styles.section_title}>⏱️ Modes Cycles & Transitions</div>
 						<div className={styles.section}>
 							<div className={styles.control_row}>
@@ -970,54 +1029,28 @@ export default function SettingsModal(props: SettingsModalProps) {
 							</div>
 						)}
 
-						{/* 3. BIOLUMINESCENT JELLYFISH */}
-						{(selectedModel === "all" || selectedModel === "cyber-rings") && (
+						{/* 3. CYBER NEKO */}
+						{(selectedModel === "all" || selectedModel === "neon-cat") && (
 							<div
-								className={`${styles.model_card} ${props.currentRendererId === "cyber-rings" ? styles.active_model_card : ""}`}
+								className={`${styles.model_card} ${props.currentRendererId === "neon-cat" ? styles.active_model_card : ""}`}
 							>
 								<div className={styles.model_card_header}>
-									<h3>🪼 Bioluminescent Jellyfish</h3>
-									{props.currentRendererId === "cyber-rings" && (
+									<h3>🐱 Cyber Neko</h3>
+									{props.currentRendererId === "neon-cat" && (
 										<span className={styles.now_playing_badge}>Modèle en cours</span>
 									)}
 								</div>
 
-								<div className={styles.control_row}>
-									<div className={styles.control_header}>
-										<span>🏊 Swim Pulse & Propel Speed</span>
-										<span className={styles.badge}>{settings.jellyfishSwimSpeed.toFixed(2)}x</span>
-									</div>
-									<input
-										type="range"
-										min="0.4"
-										max="2.5"
-										step="0.05"
-										value={settings.jellyfishSwimSpeed}
-										className={styles.slider}
-										onChange={e =>
-											handleSliderChange("jellyfishSwimSpeed", parseFloat(e.target.value))
-										}
-									/>
-								</div>
-
-								<div className={styles.control_row}>
-									<div className={styles.control_header}>
-										<span>✨ Tentacle Flow & Length</span>
-										<span className={styles.badge}>
-											{settings.jellyfishTentacleLength.toFixed(2)}x
-										</span>
-									</div>
-									<input
-										type="range"
-										min="0.5"
-										max="1.8"
-										step="0.05"
-										value={settings.jellyfishTentacleLength}
-										className={styles.slider}
-										onChange={e =>
-											handleSliderChange("jellyfishTentacleLength", parseFloat(e.target.value))
-										}
-									/>
+								<div
+									style={{
+										fontSize: "0.78rem",
+										color: "#b3b3b3",
+										lineHeight: 1.4,
+										padding: "4px 0"
+									}}
+								>
+									Mascotte féline géométrique néon style cyberpunk. Réagit aux basses, kicks et
+									percussions avec dispersion RVB et glitchs dynamiques.
 								</div>
 							</div>
 						)}
