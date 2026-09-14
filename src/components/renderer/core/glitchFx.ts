@@ -52,13 +52,14 @@ export class CyberGlitchEngine {
 			return;
 		}
 
-		// Déclenchement sur percussions (kicks, drops, transients) ou micro-stutter aléatoire
-		const isHeavyKick = punch > 0.32 || bassEnergy > 0.62 || transientEnergy > 0.45;
-		const isMicroStutter = Math.random() < 0.18;
+		// Déclenchement sur percussions (kicks, drops, transitoires marqués)
+		// Aucun glitch parasite sur les morceaux calmes ou sans attaques
+		const isHeavyKick = punch > 0.38 || (bassEnergy > 0.65 && punch > 0.2) || transientEnergy > 0.45;
+		const isMicroStutter = (punch > 0.3 || transientEnergy > 0.35) && Math.random() < 0.05;
 		const currentBurst = isHeavyKick
-			? (punch * 1.6 + transientEnergy * 0.8) * intensity
+			? (punch * 1.5 + transientEnergy * 0.8) * intensity
 			: isMicroStutter
-				? 0.45 * intensity
+				? 0.35 * intensity
 				: 0;
 
 		this.glitchEnergy = Math.max(this.glitchEnergy * 0.68, currentBurst);

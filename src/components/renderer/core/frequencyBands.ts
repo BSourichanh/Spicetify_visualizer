@@ -74,12 +74,16 @@ export function extractFrequencyBands(
 	const instAmp = decibelsToAmplitude(currentLoudnessDb);
 
 	// 2. Détection physique des 6 bandes acoustiques clés
+	// Pondération globale par l'amplitude réelle pour préserver la sérénité des morceaux calmes
+	const ampGate = Math.max(0.04, Math.min(1.0, features.amplitude * 1.35));
+
 	// A. Sub-bass (20 - 60 Hz) : Infrabasse & 808
 	const subCentroidWeight = Math.max(0, (-timbre[1] - 5) / 45); // Centroïde négatif = basses profondes
 	const subTimbreWeight = Math.max(0, (timbre[4] + 15) / 50);
 	const subBass = Math.min(
 		1.0,
-		(features.bassEnergy * 0.45 + instAmp * 0.3 + subCentroidWeight * 0.4 + subTimbreWeight * 0.25) *
+		ampGate *
+			(features.bassEnergy * 0.65 + subCentroidWeight * 0.25 + subTimbreWeight * 0.2) *
 			(1.0 + features.punch * 0.25)
 	);
 
@@ -89,9 +93,10 @@ export function extractFrequencyBands(
 	const normAttack = Math.min(1.0, attackRiseDb / 18);
 	const kick = Math.min(
 		1.0,
-		features.punch * 0.72 +
-			(isFastAttack ? normAttack * 0.48 : 0) +
-			(features.beatIntensity > 0.35 ? features.beatIntensity * 0.3 : 0)
+		ampGate *
+			(features.punch * 0.72 +
+				(isFastAttack ? normAttack * 0.42 : 0) +
+				(features.beatIntensity > 0.35 ? features.beatIntensity * 0.25 : 0))
 	);
 
 	// C. Snare / Low-Mids (250 - 800 Hz) : Caisses claires, claps, corps des rythmiques
@@ -99,10 +104,11 @@ export function extractFrequencyBands(
 	const midCentroid = Math.max(0, 1.0 - Math.abs(timbre[1] - 15) / 35);
 	const snare = Math.min(
 		1.0,
-		(isFastAttack ? normAttack * 0.42 : 0) +
-			noiseFlatness * 0.42 +
-			midCentroid * 0.28 +
-			features.transientEnergy * 0.35
+		ampGate *
+			((isFastAttack ? normAttack * 0.38 : 0) +
+				noiseFlatness * 0.38 +
+				midCentroid * 0.24 +
+				features.transientEnergy * 0.35)
 	);
 
 	// D. Vocals / Mids (800 - 3000 Hz) : Voix humaine, synthés mélodiques, guitares
@@ -110,15 +116,24 @@ export function extractFrequencyBands(
 	const avgPitch = pitches.reduce((a, b) => a + b, 0) / 12;
 	const pitchContrast = Math.max(0, maxPitch - avgPitch); // Clarté d'une note de voix vs bruit blanc
 	const isSustained = (segment.loudness_max_time ?? 0.08) > 0.08;
-	const vocal = Math.min(1.0, features.midEnergy * 0.42 + pitchContrast * 0.45 + (isSustained ? instAmp * 0.32 : 0));
+	const vocal = Math.min(
+		1.0,
+		ampGate * (features.midEnergy * 0.45 + pitchContrast * 0.4 + (isSustained ? instAmp * 0.25 : 0))
+	);
 
 	// E. Presence / High-Mids (3000 - 6000 Hz) : Attaque de médiator, claquant
 	const highCentroid = Math.max(0, Math.min(1.0, (timbre[1] - 18) / 48));
-	const presence = Math.min(1.0, highCentroid * 0.52 + features.trebleEnergy * 0.32 + features.transientEnergy * 0.3);
+	const presence = Math.min(
+		1.0,
+		ampGate * (highCentroid * 0.45 + features.trebleEnergy * 0.35 + features.transientEnergy * 0.25)
+	);
 
 	// F. Treble / Air (6000 - 16000 Hz) : Charlestons (hi-hats), cymbales, brillance cristalline
 	const airCentroid = Math.max(0, Math.min(1.0, (timbre[1] - 38) / 58));
-	const treble = Math.min(1.0, features.trebleEnergy * 0.62 + airCentroid * 0.42 + (instAmp > 0.15 ? 0.12 : 0));
+	const treble = Math.min(
+		1.0,
+		ampGate * (features.trebleEnergy * 0.6 + airCentroid * 0.35 + (instAmp > 0.15 ? 0.1 : 0))
+	);
 
 	// 3. Distribution harmonieuse sur les 36 canaux du spectre
 	const targetChannels: number[] = new Array(NUM_CHANNELS).fill(0);

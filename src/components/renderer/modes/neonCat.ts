@@ -284,17 +284,17 @@ class FriendlyNekoEngine {
 		// Scintillement néon
 		this.transformerFlicker = Math.random() < 0.04 ? 0.45 + Math.random() * 0.5 : 1.0;
 
-		// Glitch : déclenchement sur kicks ou micro-stutter
-		const isHeavyKick = punch > 0.32 || bass > 0.6;
-		const isMicroStutter = Math.random() < 0.2;
-		const currentBurst = isHeavyKick ? punch * 1.8 : isMicroStutter ? 0.5 : 0;
+		// Glitch : déclenchement musical sur kicks percutants ou drops (aucun glitch aléatoire sur musique calme)
+		const isHeavyKick = punch > 0.42 || (bass > 0.62 && punch > 0.22);
+		const isMicroStutter = punch > 0.35 && Math.random() < 0.04;
+		const currentBurst = isHeavyKick ? punch * 1.6 : isMicroStutter ? 0.35 : 0;
 		this.glitchEnergy = Math.max(this.glitchEnergy * 0.68, currentBurst);
 
-		// Burst RVB
-		if (isHeavyKick || isMicroStutter) {
-			const burstMag = this.glitchEnergy * 32.0 + 8.0;
+		// Burst RVB (uniquement sur impact musical)
+		if (isHeavyKick || (isMicroStutter && this.glitchEnergy > 0.2)) {
+			const burstMag = this.glitchEnergy * 28.0 + 4.0;
 			this.chromaticBurstX = (Math.random() - 0.5) * burstMag;
-			this.chromaticBurstY = (Math.random() - 0.5) * (burstMag * 0.35);
+			this.chromaticBurstY = (Math.random() - 0.5) * (burstMag * 0.3);
 		} else {
 			this.chromaticBurstX *= 0.6;
 			this.chromaticBurstY *= 0.6;

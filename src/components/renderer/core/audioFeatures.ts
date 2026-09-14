@@ -106,12 +106,12 @@ export function extractAudioFeatures(
 ): AudioFeatures {
 	const safeProgress = Number.isFinite(progress) ? Math.max(0, progress) : 0;
 
-	// 1. Normalisation automatique de gain (AGC) basée sur la sonie globale du morceau Spotify
-	// Référence : -9.0 dB (moyenne de mastering streaming moderne)
-	const trackLoudness = Number.isFinite(analysis?.track?.loudness) ? analysis!.track.loudness : -9.0;
-	// Gain d'égalisation dynamique : compense les morceaux calmes (-18dB -> +6dB) sans saturer l'EDM (-4dB -> -1.5dB)
-	const loudnessCompensationDb = Math.max(-6.0, Math.min(10.0, -9.0 - trackLoudness));
-	const loudnessGain = Math.pow(10, (loudnessCompensationDb * 0.42) / 20);
+	// 1. Normalisation automatique de gain (AGC) préservant la dynamique naturelle
+	// Référence : -10.0 dB (moyenne de mastering streaming moderne)
+	const trackLoudness = Number.isFinite(analysis?.track?.loudness) ? analysis!.track.loudness : -10.0;
+	// Compensation douce et progressive : évite de sur-amplifier le silence ou les morceaux acoustiques calmes
+	const loudnessCompensationDb = Math.max(-4.0, Math.min(6.0, (-10.0 - trackLoudness) * 0.5));
+	const loudnessGain = Math.pow(10, loudnessCompensationDb / 20);
 
 	let rawAmp = 0;
 	let rawSmooth = 0;
@@ -124,16 +124,18 @@ export function extractAudioFeatures(
 		} catch {}
 	}
 
-	// Suivi adaptatif du pic d'amplitude pour garantir une dynamique pleine échelle [0.0, 1.0]
-	const currentInstantPeak = Math.max(rawAmp * loudnessGain, 0.22);
-	runningPeakAmp = Math.max(currentInstantPeak, runningPeakAmp * 0.9975); // déclin très lent (~6-8s)
-	const effectiveHeadroom = Math.max(0.35, runningPeakAmp);
+	// Suivi adaptatif du pic d'amplitude avec un plancher de garde élevé (0.65)
+	// pour préserver la quiétude des morceaux calmes sans écraser leur dynamique
+	const currentInstantPeak = Math.max(rawAmp * loudnessGain, 0.35);
+	runningPeakAmp = Math.max(currentInstantPeak, runningPeakAmp * 0.998); // déclin très lent
+	const effectiveHeadroom = Math.max(0.68, runningPeakAmp);
 
 	const normalizedRawAmp = (rawAmp * loudnessGain) / effectiveHeadroom;
 	const normalizedSmoothAmp = (rawSmooth * loudnessGain) / effectiveHeadroom;
 
-	const amplitude = Math.max(0, Math.min(1.0, Math.pow(normalizedRawAmp, 0.72) * 1.45 - 0.04));
-	const smoothAmp = Math.max(0, Math.min(1.0, Math.pow(normalizedSmoothAmp, 0.72) * 1.35 - 0.04));
+	// Courbe naturelle douce : amplitude quasi-linéaire (les passages calmes restent calmes)
+	const amplitude = Math.max(0, Math.min(1.0, Math.pow(normalizedRawAmp, 0.92) * 1.15));
+	const smoothAmp = Math.max(0, Math.min(1.0, Math.pow(normalizedSmoothAmp, 0.92) * 1.1));
 
 	let rawPitches = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
 	let rawTimbre = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -159,17 +161,19 @@ export function extractAudioFeatures(
 				rawTimbre = segment.timbre.map(t => (Number.isFinite(t) ? t : 0));
 			}
 
-			// Attaque transitoire instantanée sur l'analyse de segment Spotify (kicks / drums)
+			// Attaque transitoire réelle : exige une montée rapide et significative du volume
 			const segTime = safeProgress - segment.start;
 			const maxTime = Math.max(0.02, segment.loudness_max_time ?? 0.06);
 			if (segTime >= 0 && segTime < maxTime + 0.18) {
-				const attackDb = Math.max(0, (segment.loudness_max ?? -20) - (segment.loudness_start ?? -40));
-				const normAttack = Math.min(1.0, attackDb / 20);
-				const absLoudness = Math.max(0, Math.min(1.0, ((segment.loudness_max ?? -25) + 26) / 22));
-				const effectiveAttack = Math.max(normAttack, normAttack * 0.45 + absLoudness * 0.65);
-				// Décroissance exponentielle analogique soyeuse (pas de coupure brutale)
-				const decay = Math.exp(-segTime / (maxTime * 0.7 + 0.08));
-				segTransient = effectiveAttack * decay;
+				const attackDb = Math.max(0, (segment.loudness_max ?? -25) - (segment.loudness_start ?? -40));
+				const isFastRise = (segment.loudness_max_time ?? 0.06) <= 0.09 && attackDb >= 4.0;
+				if (isFastRise) {
+					const normAttack = Math.min(1.0, attackDb / 18);
+					const absLoudness = Math.max(0, Math.min(1.0, ((segment.loudness_max ?? -25) + 26) / 22));
+					const effectiveAttack = normAttack * (0.35 + absLoudness * 0.65);
+					const decay = Math.exp(-segTime / (maxTime * 0.7 + 0.08));
+					segTransient = effectiveAttack * decay;
+				}
 			}
 		} catch {}
 	}
@@ -200,18 +204,30 @@ export function extractAudioFeatures(
 				const dur = Math.max(0.2, currentBeat.duration || 0.5);
 				if (timeSinceBeat >= 0 && timeSinceBeat < dur) {
 					const conf = currentBeat.confidence ?? 0.85;
-					// Impact sec et percutant avec attaque immédiate et déclin exponentiel
 					const punchDur = Math.min(0.13, dur * 0.32);
-					const dropBoost = 0.75 + amplitude * 0.55;
+
+					// Gating acoustique strict : le métronome ne doit PAS générer de punch
+					// s'il n'y a pas d'attaque acoustique réelle ou si l'amplitude est très basse
+					const acousticActivity = Math.min(1.0, amplitude * 1.4);
+					const transientGating = Math.max(
+						0.15,
+						Math.min(1.0, segTransient * 2.2 + (amplitude - smoothAmp) * 2.5)
+					);
 
 					if (timeSinceBeat <= punchDur) {
-						beatPunch = Math.pow(1 - timeSinceBeat / punchDur, 1.5) * conf * dropBoost;
+						beatPunch =
+							Math.pow(1 - timeSinceBeat / punchDur, 1.5) * conf * acousticActivity * transientGating;
 					} else {
-						// Décroissance exponentielle après le pic (amorti analogique)
-						beatPunch = Math.exp(-(timeSinceBeat - punchDur) / 0.12) * conf * dropBoost * 0.35;
+						beatPunch =
+							Math.exp(-(timeSinceBeat - punchDur) / 0.12) *
+							conf *
+							acousticActivity *
+							transientGating *
+							0.35;
 					}
-					// Résonance de basse sur la durée du temps
-					beatPulse = Math.exp(-timeSinceBeat / (dur * 0.45)) * conf;
+
+					// La résonance de pulsation est également pondérée par l'amplitude réelle
+					beatPulse = Math.exp(-timeSinceBeat / (dur * 0.45)) * conf * acousticActivity;
 				}
 			}
 		} catch {}
@@ -228,20 +244,23 @@ export function extractAudioFeatures(
 	const chromaTreble = (pitches[7] + pitches[8] + pitches[9] + pitches[10]) / 4;
 	const spectralCentroid = Math.max(0, Math.min(1, (timbre[1] + 50) / 110));
 
-	// Punch : impact physique instantané (kick / caisse claire / drops)
-	const punch = Math.max(0, Math.min(1.0, beatPunch * 0.76 + segTransient * 0.46));
+	// Punch : impact physique instantané (kick / caisse claire / drops percutants)
+	const punch = Math.max(0, Math.min(1.0, beatPunch * 0.75 + segTransient * 0.55));
 
-	// Bass Energy : Juste milieu dynamique normalisé (plage 0.12 repos -> 1.0 kick fort)
-	const rawBass = amplitude * 0.35 + beatPulse * 0.32 + punch * 0.28 + subTimbre * 0.15 + chromaBass * 0.12;
-	const bassEnergy = Math.max(0.12, Math.min(1.0, Math.pow(rawBass, 0.9) * 1.3));
+	// Bass Energy : Strictly acoustic — modulation obligatoire par l'amplitude réelle et le timbre grave
+	// En l'absence de basses ou sur musique calme, reste bas (~0.06 - 0.12). Sur kick / drop, monte à 1.0.
+	const acousticBassPresence = subTimbre * 0.55 + chromaBass * 0.45;
+	const dynamicBassHit = punch * 0.65 + beatPulse * 0.35;
+	const rawBass = amplitude * (acousticBassPresence * 0.5 + dynamicBassHit * 0.5);
+	const bassEnergy = Math.max(0.06, Math.min(1.0, Math.pow(rawBass * 1.5, 0.95)));
 
-	// Mid Energy : harmoniques mélodiques & corps musical (plage 0.15 -> 0.95)
-	const rawMid = amplitude * 0.38 + chromaMid * 0.36 + smoothAmp * 0.26;
-	const midEnergy = Math.max(0.15, Math.min(0.95, rawMid * 1.2));
+	// Mid Energy : harmoniques mélodiques & corps musical (plage 0.08 -> 1.0)
+	const rawMid = amplitude * 0.48 + chromaMid * 0.36 + smoothAmp * 0.16;
+	const midEnergy = Math.max(0.08, Math.min(1.0, rawMid * 1.2));
 
-	// Treble Energy : étincelles, brillance et cils vibratiles (plage 0.10 -> 0.92)
-	const rawTreble = amplitude * 0.28 + chromaTreble * 0.36 + spectralCentroid * 0.36;
-	const trebleEnergy = Math.max(0.1, Math.min(0.92, rawTreble * 1.2));
+	// Treble Energy : étincelles, brillance et cils vibratiles (plage 0.06 -> 1.0)
+	const rawTreble = amplitude * 0.38 + chromaTreble * 0.36 + spectralCentroid * 0.26;
+	const trebleEnergy = Math.max(0.06, Math.min(1.0, rawTreble * 1.2));
 
 	const vocalEnergy = midEnergy * 0.75 + trebleEnergy * 0.25;
 	const transientEnergy = Math.max(0, amplitude - smoothAmp);

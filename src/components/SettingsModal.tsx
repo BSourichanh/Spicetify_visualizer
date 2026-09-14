@@ -189,8 +189,9 @@ export default function SettingsModal(props: SettingsModalProps) {
 				{mainTab === "global" && (
 					<>
 						<div className={styles.scope_banner}>
-							<span>🌐 Mode Global :</span> Ces options s'appliquent en continu à tous les modèles
-							(sensibilité audio, ambiance visuelle, effets d'arrière-plan, transitions et palettes).
+							<span>🌐 Mode Global :</span> Ces options s'appliquent à tous les modèles. Les dynamiques
+							sont calibrées automatiquement : les morceaux calmes restent doux et sereins, tandis que les
+							drops et musiques énergiques explosent avec précision sans avoir à retoucher les réglages.
 						</div>
 
 						{/* 1. SENSIVITÉS AUDIO */}
@@ -357,24 +358,6 @@ export default function SettingsModal(props: SettingsModalProps) {
 
 									<div className={styles.control_row}>
 										<div className={styles.control_header}>
-											<span>🔍 Fireflies Size</span>
-											<span className={styles.badge}>{settings.firefliesSize.toFixed(2)}x</span>
-										</div>
-										<input
-											type="range"
-											min="0.3"
-											max="3.0"
-											step="0.05"
-											value={settings.firefliesSize}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("firefliesSize", parseFloat(e.target.value))
-											}
-										/>
-									</div>
-
-									<div className={styles.control_row}>
-										<div className={styles.control_header}>
 											<span>🌌 Fireflies Density (Count)</span>
 											<span className={styles.badge}>{settings.firefliesCount}</span>
 										</div>
@@ -387,24 +370,6 @@ export default function SettingsModal(props: SettingsModalProps) {
 											className={styles.slider}
 											onChange={e =>
 												handleSliderChange("firefliesCount", parseInt(e.target.value, 10))
-											}
-										/>
-									</div>
-
-									<div className={styles.control_row}>
-										<div className={styles.control_header}>
-											<span>💨 Fireflies Drift Speed</span>
-											<span className={styles.badge}>{settings.firefliesSpeed.toFixed(2)}x</span>
-										</div>
-										<input
-											type="range"
-											min="0.2"
-											max="2.5"
-											step="0.05"
-											value={settings.firefliesSpeed}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("firefliesSpeed", parseFloat(e.target.value))
 											}
 										/>
 									</div>
@@ -426,65 +391,23 @@ export default function SettingsModal(props: SettingsModalProps) {
 							</div>
 
 							{settings.shockwaveEnabled && (
-								<>
-									<div className={styles.control_row} style={{ marginTop: "10px" }}>
-										<div className={styles.control_header}>
-											<span>🎯 Shockwave Bass Sensitivity</span>
-											<span className={styles.badge}>
-												{settings.shockwaveSensitivity.toFixed(2)}x
-											</span>
-										</div>
-										<input
-											type="range"
-											min="0.2"
-											max="2.5"
-											step="0.05"
-											value={settings.shockwaveSensitivity}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("shockwaveSensitivity", parseFloat(e.target.value))
-											}
-										/>
+								<div className={styles.control_row} style={{ marginTop: "10px" }}>
+									<div className={styles.control_header}>
+										<span>⚡ Shockwave Intensity</span>
+										<span className={styles.badge}>{settings.shockwaveIntensity.toFixed(2)}x</span>
 									</div>
-
-									<div className={styles.control_row}>
-										<div className={styles.control_header}>
-											<span>⚡ Shockwave Intensity</span>
-											<span className={styles.badge}>
-												{settings.shockwaveIntensity.toFixed(2)}x
-											</span>
-										</div>
-										<input
-											type="range"
-											min="0.2"
-											max="2.0"
-											step="0.05"
-											value={settings.shockwaveIntensity}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("shockwaveIntensity", parseFloat(e.target.value))
-											}
-										/>
-									</div>
-
-									<div className={styles.control_row}>
-										<div className={styles.control_header}>
-											<span>💨 Shockwave Expansion Speed</span>
-											<span className={styles.badge}>{settings.shockwaveSpeed.toFixed(2)}x</span>
-										</div>
-										<input
-											type="range"
-											min="0.4"
-											max="2.5"
-											step="0.05"
-											value={settings.shockwaveSpeed}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("shockwaveSpeed", parseFloat(e.target.value))
-											}
-										/>
-									</div>
-								</>
+									<input
+										type="range"
+										min="0.2"
+										max="2.0"
+										step="0.05"
+										value={settings.shockwaveIntensity}
+										className={styles.slider}
+										onChange={e =>
+											handleSliderChange("shockwaveIntensity", parseFloat(e.target.value))
+										}
+									/>
+								</div>
 							)}
 						</div>
 
@@ -502,45 +425,23 @@ export default function SettingsModal(props: SettingsModalProps) {
 							</div>
 
 							{settings.neonBassEnabled && (
-								<>
-									<div className={styles.control_row} style={{ marginTop: "10px" }}>
-										<div className={styles.control_header}>
-											<span>🌊 Neon Current Intensity</span>
-											<span className={styles.badge}>
-												{settings.neonBassIntensity.toFixed(2)}x
-											</span>
-										</div>
-										<input
-											type="range"
-											min="0.2"
-											max="2.0"
-											step="0.05"
-											value={settings.neonBassIntensity}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("neonBassIntensity", parseFloat(e.target.value))
-											}
-										/>
+								<div className={styles.control_row} style={{ marginTop: "10px" }}>
+									<div className={styles.control_header}>
+										<span>🌊 Neon Current Intensity</span>
+										<span className={styles.badge}>{settings.neonBassIntensity.toFixed(2)}x</span>
 									</div>
-
-									<div className={styles.control_row}>
-										<div className={styles.control_header}>
-											<span>⚡ Neon Propagation Speed</span>
-											<span className={styles.badge}>{settings.neonBassSpeed.toFixed(2)}x</span>
-										</div>
-										<input
-											type="range"
-											min="0.4"
-											max="2.5"
-											step="0.05"
-											value={settings.neonBassSpeed}
-											className={styles.slider}
-											onChange={e =>
-												handleSliderChange("neonBassSpeed", parseFloat(e.target.value))
-											}
-										/>
-									</div>
-								</>
+									<input
+										type="range"
+										min="0.2"
+										max="2.0"
+										step="0.05"
+										value={settings.neonBassIntensity}
+										className={styles.slider}
+										onChange={e =>
+											handleSliderChange("neonBassIntensity", parseFloat(e.target.value))
+										}
+									/>
+								</div>
 							)}
 						</div>
 
@@ -559,77 +460,7 @@ export default function SettingsModal(props: SettingsModalProps) {
 
 							{settings.bigBangAmbientEnabled && (
 								<>
-									{/* Ondes d'inflation cosmologique */}
-									<div className={styles.control_header} style={{ marginTop: "12px" }}>
-										<span>🌊 Ondes d'Inflation Cosmologique</span>
-										<button
-											className={`${styles.toggle_btn} ${settings.bigBangWaveEnabled ? styles.active : ""}`}
-											onClick={() => handleToggleChange("bigBangWaveEnabled")}
-										>
-											{settings.bigBangWaveEnabled ? "ON" : "OFF"}
-										</button>
-									</div>
-
-									{settings.bigBangWaveEnabled && (
-										<div className={styles.control_row} style={{ marginTop: "10px" }}>
-											<div className={styles.control_header}>
-												<span>🔊 Seuil Déclenchement Basses Très Élevées</span>
-												<span className={styles.badge}>
-													{Math.round(settings.bigBangWaveThreshold * 100)}%
-												</span>
-											</div>
-											<input
-												type="range"
-												min="0.40"
-												max="0.90"
-												step="0.02"
-												value={settings.bigBangWaveThreshold}
-												className={styles.slider}
-												onChange={e =>
-													handleSliderChange(
-														"bigBangWaveThreshold",
-														parseFloat(e.target.value)
-													)
-												}
-											/>
-										</div>
-									)}
-
-									{/* Vitesse dynamique réactive aux basses */}
-									<div className={styles.control_header} style={{ marginTop: "12px" }}>
-										<span>⚡ Vitesse Dynamique Réactive aux Basses</span>
-										<button
-											className={`${styles.toggle_btn} ${settings.bigBangDynamicSpeed ? styles.active : ""}`}
-											onClick={() => handleToggleChange("bigBangDynamicSpeed")}
-										>
-											{settings.bigBangDynamicSpeed ? "ON" : "OFF"}
-										</button>
-									</div>
-
-									{/* Nébuleuse & Nuages Primordiaux */}
-									<div className={styles.control_header} style={{ marginTop: "12px" }}>
-										<span>🌌 Nébuleuse de Matière Primordiale</span>
-										<button
-											className={`${styles.toggle_btn} ${settings.bigBangNebulaEnabled ? styles.active : ""}`}
-											onClick={() => handleToggleChange("bigBangNebulaEnabled")}
-										>
-											{settings.bigBangNebulaEnabled ? "ON" : "OFF"}
-										</button>
-									</div>
-
-									{/* Graines Stellaires */}
-									<div className={styles.control_header} style={{ marginTop: "12px" }}>
-										<span>✨ Graines Stellaires & Poussière Cosmique</span>
-										<button
-											className={`${styles.toggle_btn} ${settings.bigBangStarsEnabled ? styles.active : ""}`}
-											onClick={() => handleToggleChange("bigBangStarsEnabled")}
-										>
-											{settings.bigBangStarsEnabled ? "ON" : "OFF"}
-										</button>
-									</div>
-
-									{/* Intensité globale de l'ambiance */}
-									<div className={styles.control_row} style={{ marginTop: "12px" }}>
+									<div className={styles.control_row} style={{ marginTop: "10px" }}>
 										<div className={styles.control_header}>
 											<span>✨ Intensité de l'Ambiance Cosmique</span>
 											<span className={styles.badge}>
@@ -650,6 +481,39 @@ export default function SettingsModal(props: SettingsModalProps) {
 												)
 											}
 										/>
+									</div>
+
+									{/* Ondes d'inflation cosmologique */}
+									<div className={styles.control_header} style={{ marginTop: "10px" }}>
+										<span>🌊 Ondes d'Inflation</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.bigBangWaveEnabled ? styles.active : ""}`}
+											onClick={() => handleToggleChange("bigBangWaveEnabled")}
+										>
+											{settings.bigBangWaveEnabled ? "ON" : "OFF"}
+										</button>
+									</div>
+
+									{/* Nébuleuse & Nuages Primordiaux */}
+									<div className={styles.control_header} style={{ marginTop: "10px" }}>
+										<span>🌌 Nébuleuse Primordiale</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.bigBangNebulaEnabled ? styles.active : ""}`}
+											onClick={() => handleToggleChange("bigBangNebulaEnabled")}
+										>
+											{settings.bigBangNebulaEnabled ? "ON" : "OFF"}
+										</button>
+									</div>
+
+									{/* Graines Stellaires */}
+									<div className={styles.control_header} style={{ marginTop: "10px" }}>
+										<span>✨ Poussière Stellaire</span>
+										<button
+											className={`${styles.toggle_btn} ${settings.bigBangStarsEnabled ? styles.active : ""}`}
+											onClick={() => handleToggleChange("bigBangStarsEnabled")}
+										>
+											{settings.bigBangStarsEnabled ? "ON" : "OFF"}
+										</button>
 									</div>
 								</>
 							)}
