@@ -61,6 +61,8 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 		}, [audioAnalysis]);
 
 		const featuresRef = React.useRef<AudioFeatures | null>(null);
+		const dspEnergyTimeRef = React.useRef<number>(0);
+		const lastFrameTimeRef = React.useRef<number>(performance.now());
 
 		const onInit = useCallback(
 			(ctx: CanvasRenderingContext2D | null): RendererState => {
@@ -86,6 +88,11 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					if (width <= 0 || height <= 0) return;
 					const settings = getVisualizerSettings();
 
+					// Calcul du delta-time réel entre deux trames
+					const now = performance.now();
+					const dt = Math.min(0.08, Math.max(0.001, (now - lastFrameTimeRef.current) * 0.001));
+					lastFrameTimeRef.current = now;
+
 					// Fond 100% transparent (ou tamisé si backgroundDim est activé)
 					ctx.clearRect(0, 0, width, height);
 					if (settings.backgroundDim > 0) {
@@ -100,7 +107,7 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					// Traitement DSP temps-réel (Méthode C)
 					const isDspCapturing = dspAudioEngine.isActive();
 					if (isDspCapturing) {
-						dspAudioEngine.processFrame(performance.now());
+						dspAudioEngine.processFrame(now);
 					}
 					const dspResult = dspAudioEngine.getResult();
 
@@ -109,21 +116,24 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 						isDspCapturing &&
 						(settings.audioSource === "dsp" || (settings.audioSource === "auto" && !data.audioAnalysis));
 
-					const isPlaying = useDspDirectly ? isDspCapturing && dspResult.amplitude > 0.005 : spotifyPlaying;
+					const isPlaying = useDspDirectly ? isDspCapturing : spotifyPlaying;
 
 					const rawFeatures = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
 
-					// Injection des données DSP si applicable
+					// Injection et animation temporelle continue des données DSP
 					if (useDspDirectly) {
 						const sens = settings.dspSensitivity ?? 1.0;
 						rawFeatures.amplitude = Math.min(1.0, dspResult.amplitude * sens);
 						rawFeatures.smoothAmp = Math.min(1.0, dspResult.smoothAmp * sens);
-						rawFeatures.bassEnergy = Math.min(1.0, (dspResult.subBass * 0.6 + dspResult.kick * 0.5) * sens);
+						rawFeatures.bassEnergy = Math.min(
+							1.0,
+							(dspResult.subBass * 0.65 + dspResult.kick * 0.55) * sens
+						);
 						rawFeatures.punch = Math.min(1.0, dspResult.punch * sens);
-						rawFeatures.midEnergy = Math.min(1.0, (dspResult.snare * 0.4 + dspResult.vocal * 0.6) * sens);
+						rawFeatures.midEnergy = Math.min(1.0, (dspResult.snare * 0.45 + dspResult.vocal * 0.65) * sens);
 						rawFeatures.trebleEnergy = Math.min(
 							1.0,
-							(dspResult.presence * 0.4 + dspResult.treble * 0.6) * sens
+							(dspResult.presence * 0.45 + dspResult.treble * 0.65) * sens
 						);
 						rawFeatures.spectralCentroid = dspResult.spectralCentroid;
 						rawFeatures.beatIntensity = dspResult.beatPulse;
@@ -132,6 +142,17 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 						for (let i = 0; i < 12; i++) {
 							rawFeatures.pitches[i] = dspResult.chroma[i];
 						}
+
+						// Intégration temporelle continue et fluide pour le mode DSP (maintient l'animation active)
+						const dspMotionSpeed =
+							(0.6 + dspResult.smoothAmp * 1.8 + dspResult.punch * 0.8) * settings.speedScale;
+						dspEnergyTimeRef.current += dt * dspMotionSpeed;
+						rawFeatures.energyTime = dspEnergyTimeRef.current;
+						rawFeatures.energy = Math.max(
+							0.2,
+							Math.min(1.0, dspResult.smoothAmp * 1.5 + dspResult.kick * 0.5)
+						);
+						rawFeatures.valence = 0.5 + Math.sin(dspEnergyTimeRef.current * 0.2) * 0.25;
 					} else if (isDspCapturing && settings.audioSource === "auto") {
 						dspAudioEngine.injectFeatures(rawFeatures, settings.dspSensitivity ?? 1.0);
 					}
@@ -143,7 +164,9 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 					const trebleEnergy = isPlaying
 						? Math.max(0.05, Math.min(1.0, rawFeatures.trebleEnergy * (settings.trebleScale ?? 1.0)))
 						: 0.05;
-					const energyTime = rawFeatures.energyTime * settings.speedScale;
+					const energyTime = useDspDirectly
+						? dspEnergyTimeRef.current
+						: rawFeatures.energyTime * settings.speedScale;
 
 					// Réutilisation de l'objet AudioFeatures (Zéro allocation par trame)
 					if (!featuresRef.current) {

@@ -42,11 +42,18 @@ export default function SettingsModal(props: SettingsModalProps) {
 	const [dspCapturing, setDspCapturing] = useState<boolean>(() => dspAudioEngine.isActive());
 	const [dspBpm, setDspBpm] = useState<number>(() => dspAudioEngine.getResult().detectedBpm);
 	const [dspKick, setDspKick] = useState<number>(() => dspAudioEngine.getResult().kick);
+	const [dspAmp, setDspAmp] = useState<number>(() => dspAudioEngine.getResult().amplitude);
+	const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
 
 	useEffect(() => {
 		if (props.isOpen) {
 			setSettings(getVisualizerSettings());
 			setDspCapturing(dspAudioEngine.isActive());
+			dspAudioEngine.getAudioDevices().then(devs => {
+				if (devs && devs.length > 0) {
+					setAudioDevices(devs);
+				}
+			});
 		}
 	}, [props.isOpen]);
 
@@ -60,10 +67,12 @@ export default function SettingsModal(props: SettingsModalProps) {
 				setDspCapturing(true);
 				setDspBpm(res.detectedBpm);
 				setDspKick(res.kick);
+				setDspAmp(res.amplitude);
 			} else {
 				setDspCapturing(false);
+				setDspAmp(0);
 			}
-		}, 150);
+		}, 80);
 
 		return () => clearInterval(interval);
 	}, [props.isOpen]);
@@ -86,7 +95,19 @@ export default function SettingsModal(props: SettingsModalProps) {
 		const updated = updateVisualizerSettings({ audioSource: src });
 		setSettings({ ...updated });
 		if (src === "dsp" && !dspAudioEngine.isActive()) {
-			const success = await dspAudioEngine.startCapture();
+			const success = await dspAudioEngine.startCapture(settings.audioDevice || undefined);
+			setDspCapturing(success);
+			dspAudioEngine.getAudioDevices().then(devs => {
+				if (devs && devs.length > 0) setAudioDevices(devs);
+			});
+		}
+	};
+
+	const handleDeviceChange = async (deviceId: string) => {
+		const updated = updateVisualizerSettings({ audioDevice: deviceId });
+		setSettings({ ...updated });
+		if (dspAudioEngine.isActive()) {
+			const success = await dspAudioEngine.startCapture(deviceId || undefined);
 			setDspCapturing(success);
 		}
 	};
@@ -96,8 +117,11 @@ export default function SettingsModal(props: SettingsModalProps) {
 			dspAudioEngine.stopCapture();
 			setDspCapturing(false);
 		} else {
-			const success = await dspAudioEngine.startCapture();
+			const success = await dspAudioEngine.startCapture(settings.audioDevice || undefined);
 			setDspCapturing(success);
+			dspAudioEngine.getAudioDevices().then(devs => {
+				if (devs && devs.length > 0) setAudioDevices(devs);
+			});
 		}
 	};
 
@@ -314,6 +338,57 @@ export default function SettingsModal(props: SettingsModalProps) {
 									>
 										{dspCapturing ? "⏹️ Arrêter Capture" : "🎤 Démarrer Capture Live"}
 									</button>
+								</div>
+
+								{/* Sélection du périphérique audio d'entrée */}
+								<div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
+									<div className={styles.control_header}>
+										<span style={{ fontSize: "0.8rem", color: "#b3b3b3" }}>
+											🎙️ Périphérique d'Entrée Audio
+										</span>
+									</div>
+									<select
+										className={styles.dsp_select}
+										value={settings.audioDevice}
+										onChange={e => handleDeviceChange(e.target.value)}
+									>
+										<option value="">Périphérique système par défaut</option>
+										{audioDevices.map((dev, idx) => {
+											const isMonitor =
+												dev.label.toLowerCase().includes("monitor") ||
+												dev.label.toLowerCase().includes("mix") ||
+												dev.label.toLowerCase().includes("stereo");
+											return (
+												<option key={dev.deviceId || idx} value={dev.deviceId}>
+													{dev.label || `Entrée Audio ${idx + 1}`}{" "}
+													{isMonitor ? "🎧 (Son PC)" : ""}
+												</option>
+											);
+										})}
+									</select>
+								</div>
+
+								{/* VU-Mètre de signal en direct */}
+								<div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+									<div className={styles.control_header}>
+										<span style={{ fontSize: "0.78rem", color: "#b3b3b3" }}>
+											📊 Signal Audio Reçu :
+										</span>
+										<span className={styles.badge}>{Math.round(dspAmp * 100)}%</span>
+									</div>
+									<div className={styles.dsp_meter_wrapper}>
+										<div
+											className={styles.dsp_meter_fill}
+											style={{ width: `${Math.min(100, Math.round(dspAmp * 100))}%` }}
+										/>
+									</div>
+								</div>
+
+								{/* Note d'aide pour la capture système */}
+								<div className={styles.dsp_tip}>
+									💡 <strong>Pour capter le son du PC :</strong> sélectionnez le périphérique{" "}
+									<strong>« Monitor of... »</strong> (ex: votre casque Audeze ou haut-parleur). Si
+									aucun son n'arrive (0%), choisissez une autre entrée dans la liste ci-dessus.
 								</div>
 
 								{dspCapturing && (

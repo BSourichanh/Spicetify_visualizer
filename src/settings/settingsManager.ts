@@ -52,6 +52,7 @@ export type VisualizerSettings = {
 	audioSource: "auto" | "spotify" | "dsp"; // default "auto" (Source audio : Auto, API Spotify ou DSP temps-réel)
 	dspSensitivity: number; // 0.2 to 2.5, default 1.0 (Sensibilité du moteur DSP temps-réel)
 	dspAutoCapture: boolean; // default false (Démarrage automatique de la capture audio DSP au lancement)
+	audioDevice: string; // default "" (ID du périphérique audio d'entrée sélectionné pour la capture DSP)
 	enabledRandomModes: string[]; // Liste des IDs de modes autorisés en mode Aléatoire (vide = tous)
 	enabledChaosModes: string[]; // Liste des IDs de modes autorisés en mode Chaos (vide = tous)
 };
@@ -60,6 +61,7 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	audioSource: "auto",
 	dspSensitivity: 1.0,
 	dspAutoCapture: false,
+	audioDevice: "",
 	punchScale: 1.0,
 	bassScale: 1.0,
 	trebleScale: 1.0,
@@ -307,6 +309,7 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.dspAutoCapture === "boolean"
 						? parsed.dspAutoCapture
 						: DEFAULT_SETTINGS.dspAutoCapture,
+				audioDevice: typeof parsed.audioDevice === "string" ? parsed.audioDevice : DEFAULT_SETTINGS.audioDevice,
 				enabledRandomModes: Array.isArray(parsed.enabledRandomModes)
 					? parsed.enabledRandomModes.filter((id: unknown) => typeof id === "string")
 					: DEFAULT_SETTINGS.enabledRandomModes,

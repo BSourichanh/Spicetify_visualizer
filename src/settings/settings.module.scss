@@ -690,3 +690,51 @@
 		color: #1db954;
 	}
 }
+
+.dsp_select {
+	width: 100%;
+	background: #282828;
+	color: #fff;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 6px;
+	padding: 8px 10px;
+	font-size: 0.8rem;
+	cursor: pointer;
+	outline: none;
+	transition: border-color 0.15s;
+
+	&:focus {
+		border-color: #1db954;
+	}
+
+	option {
+		background: #222;
+		color: #fff;
+	}
+}
+
+.dsp_meter_wrapper {
+	width: 100%;
+	height: 10px;
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 5px;
+	overflow: hidden;
+	position: relative;
+}
+
+.dsp_meter_fill {
+	height: 100%;
+	background: linear-gradient(90deg, #1db954, #1ed760, #ffaa00);
+	border-radius: 5px;
+	transition: width 0.08s ease-out;
+}
+
+.dsp_tip {
+	font-size: 0.73rem;
+	color: #999;
+	line-height: 1.35;
+	background: rgba(255, 255, 255, 0.03);
+	padding: 8px 10px;
+	border-radius: 6px;
+	border-left: 3px solid #1db954;
+}

@@ -84,7 +84,7 @@ export default function App(props: {
 	useEffect(() => {
 		const s = getVisualizerSettings();
 		if ((s.audioSource === "dsp" || s.dspAutoCapture) && !dspAudioEngine.isActive()) {
-			dspAudioEngine.startCapture().catch(err => {
+			dspAudioEngine.startCapture(s.audioDevice || undefined).catch(err => {
 				console.warn("[Visualizer] Auto-start DSP capture failed:", err);
 			});
 		}

@@ -46,6 +46,7 @@ export class DspAudioEngine {
 
 	// État
 	private isCapturing = false;
+	private currentDeviceId = "";
 	private lastProcessTime = 0;
 	private detectedBpm = 124;
 	private beatPhase = 0;
@@ -129,10 +130,29 @@ export class DspAudioEngine {
 	}
 
 	/**
-	 * Démarre la capture audio en direct (Microphone ou Loopback carte son)
+	 * Liste les périphériques audio d'entrée disponibles
 	 */
-	public async startCapture(): Promise<boolean> {
-		if (this.isCapturing) return true;
+	public async getAudioDevices(): Promise<MediaDeviceInfo[]> {
+		try {
+			if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+				return [];
+			}
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			return devices.filter(d => d.kind === "audioinput");
+		} catch (e) {
+			console.warn("[DSP Engine] Error enumerating audio devices:", e);
+			return [];
+		}
+	}
+
+	/**
+	 * Démarre la capture audio en direct (Microphone, Stereo Mix ou Loopback)
+	 */
+	public async startCapture(deviceId?: string): Promise<boolean> {
+		if (this.isCapturing && deviceId && deviceId === this.currentDeviceId) return true;
+		if (this.isCapturing) {
+			this.stopCapture();
+		}
 
 		try {
 			if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -140,14 +160,20 @@ export class DspAudioEngine {
 				return false;
 			}
 
+			const audioConstraints: MediaTrackConstraints = {
+				echoCancellation: false,
+				noiseSuppression: false,
+				autoGainControl: false
+			};
+			if (deviceId) {
+				audioConstraints.deviceId = { exact: deviceId };
+			}
+
 			const stream = await navigator.mediaDevices.getUserMedia({
-				audio: {
-					echoCancellation: false,
-					noiseSuppression: false,
-					autoGainControl: false
-				}
+				audio: audioConstraints
 			});
 
+			this.currentDeviceId = deviceId || "";
 			this.mediaStream = stream;
 			const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
 			this.audioCtx = new AudioContextClass();
@@ -160,7 +186,7 @@ export class DspAudioEngine {
 
 			this.analyserNode = this.audioCtx.createAnalyser();
 			this.analyserNode.fftSize = DspAudioEngine.FFT_SIZE;
-			this.analyserNode.smoothingTimeConstant = 0.4;
+			this.analyserNode.smoothingTimeConstant = 0.35;
 
 			this.sourceNode = this.audioCtx.createMediaStreamSource(stream);
 			this.sourceNode.connect(this.analyserNode);
@@ -168,7 +194,12 @@ export class DspAudioEngine {
 			this.isCapturing = true;
 			this.result.isActive = true;
 			this.result.sampleRate = this.audioCtx.sampleRate;
-			console.info("[DSP Engine] Capture audio démarrée avec succès. Sample rate:", this.audioCtx.sampleRate);
+			console.info(
+				"[DSP Engine] Capture audio démarrée avec succès. Device:",
+				deviceId || "default",
+				"Sample rate:",
+				this.audioCtx.sampleRate
+			);
 			return true;
 		} catch (err) {
 			console.warn("[DSP Engine] Impossible d'accéder au périphérique audio:", err);
@@ -195,12 +226,17 @@ export class DspAudioEngine {
 		}
 		this.analyserNode = null;
 		this.isCapturing = false;
+		this.currentDeviceId = "";
 		this.result.isActive = false;
 		console.info("[DSP Engine] Capture audio arrêtée.");
 	}
 
 	public get capturing(): boolean {
 		return this.isCapturing;
+	}
+
+	public get deviceId(): string {
+		return this.currentDeviceId;
 	}
 
 	public isActive(): boolean {
@@ -238,9 +274,9 @@ export class DspAudioEngine {
 			sumSquares += s * s;
 		}
 		const rms = Math.sqrt(sumSquares / DspAudioEngine.FFT_SIZE);
-		const amp = Math.min(1.0, rms * 3.8); // Normalisation vers [0.0, 1.0]
+		const amp = Math.min(1.0, rms * 5.5); // Normalisation plus réactive vers [0.0, 1.0]
 
-		this.runningAmp += (amp - this.runningAmp) * (amp > this.runningAmp ? 0.35 : 0.12);
+		this.runningAmp += (amp - this.runningAmp) * (amp > this.runningAmp ? 0.45 : 0.15);
 		const smoothAmp = this.runningAmp;
 
 		// 3. Décomposition fréquentielle multi-bandes & Flux spectral
@@ -263,7 +299,7 @@ export class DspAudioEngine {
 		for (let i = 1; i < DspAudioEngine.BIN_COUNT; i++) {
 			const db = this.freqData[i];
 			// Convertit les décibels (-100 dB à 0 dB) en amplitude linéaire
-			const mag = db > -90 ? Math.pow(10, db / 20) : 0;
+			const mag = db > -85 ? Math.pow(10, (db + 6) / 20) : 0;
 			const prevMag = this.prevFreqData[i];
 			this.prevFreqData[i] = mag;
 
@@ -294,12 +330,12 @@ export class DspAudioEngine {
 		}
 
 		// Normalisation multi-bandes
-		const subBass = Math.min(1.0, subBassSum * 2.2);
-		const kick = Math.min(1.0, kickSum * 1.8);
-		const snare = Math.min(1.0, snareSum * 2.4);
-		const vocal = Math.min(1.0, vocalSum * 3.0);
-		const presence = Math.min(1.0, presenceSum * 4.5);
-		const treble = Math.min(1.0, trebleSum * 7.0);
+		const subBass = Math.min(1.0, subBassSum * 2.8);
+		const kick = Math.min(1.0, kickSum * 2.4);
+		const snare = Math.min(1.0, snareSum * 2.8);
+		const vocal = Math.min(1.0, vocalSum * 3.5);
+		const presence = Math.min(1.0, presenceSum * 5.0);
+		const treble = Math.min(1.0, trebleSum * 8.0);
 
 		const centroid = centroidDen > 0.0001 ? Math.min(1.0, centroidNum / centroidDen / 7000) : 0.5;
 
