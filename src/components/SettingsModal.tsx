@@ -346,6 +346,16 @@ export default function SettingsModal(props: SettingsModalProps) {
 										<span style={{ fontSize: "0.8rem", color: "#b3b3b3" }}>
 											🎙️ Périphérique d'Entrée Audio
 										</span>
+										<button
+											className={styles.dsp_btn}
+											style={{ padding: "2px 8px", fontSize: "0.72rem" }}
+											onClick={async () => {
+												const devs = await dspAudioEngine.getAudioDevices();
+												if (devs && devs.length > 0) setAudioDevices(devs);
+											}}
+										>
+											🔄 Rafraîchir
+										</button>
 									</div>
 									<select
 										className={styles.dsp_select}
@@ -354,14 +364,15 @@ export default function SettingsModal(props: SettingsModalProps) {
 									>
 										<option value="">Périphérique système par défaut</option>
 										{audioDevices.map((dev, idx) => {
-											const isMonitor =
+											const isLoopback =
+												dev.label.toLowerCase().includes("loopback") ||
 												dev.label.toLowerCase().includes("monitor") ||
 												dev.label.toLowerCase().includes("mix") ||
 												dev.label.toLowerCase().includes("stereo");
 											return (
 												<option key={dev.deviceId || idx} value={dev.deviceId}>
 													{dev.label || `Entrée Audio ${idx + 1}`}{" "}
-													{isMonitor ? "🎧 (Son PC)" : ""}
+													{isLoopback ? "🎧 (Son PC / Casque)" : ""}
 												</option>
 											);
 										})}
