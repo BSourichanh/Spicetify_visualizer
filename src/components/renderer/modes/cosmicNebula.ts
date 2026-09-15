@@ -44,7 +44,7 @@ class NebularPillarsLayer implements NebulaLayer {
 
 	public render(ctx: CanvasRenderingContext2D, frame: CosmicNebulaFrameContext): void {
 		const { baseR, time, bassEnergy, punch, palette } = frame;
-		const pillarPulse = bassEnergy * 0.32 + punch * 0.28;
+		const pillarPulse = bassEnergy * 0.45 + punch * 0.38;
 
 		for (let l = 0; l < NebularPillarsLayer.NUM_LOBES; l++) {
 			const lAngle = (l / NebularPillarsLayer.NUM_LOBES) * Math.PI * 2 + time * 0.08;

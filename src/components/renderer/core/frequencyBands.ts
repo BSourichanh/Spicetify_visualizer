@@ -1,5 +1,6 @@
 import { AudioFeatures } from "./audioFeatures";
 import { binarySearchIndex, decibelsToAmplitude } from "../../../math";
+import { dspAudioEngine } from "./dspAudioEngine";
 
 export type ExtractedFrequencyBands = {
 	subBass: number; // 20 - 60 Hz: infrabasses, 808
@@ -220,14 +221,21 @@ export function extractFrequencyBands(
 	const attackRate = 1.0 - Math.exp(-safeDt * 28.0);
 	const releaseRate = 1.0 - Math.exp(-safeDt * 7.5);
 
-	for (let i = 0; i < NUM_CHANNELS; i++) {
-		const target = targetChannels[i];
-		if (target > smoothedChannels[i]) {
-			smoothedChannels[i] += (target - smoothedChannels[i]) * attackRate;
-		} else {
-			smoothedChannels[i] += (target - smoothedChannels[i]) * releaseRate;
+	// Si le moteur DSP est actif, échantillonner directement le spectre FFT 2048 points
+	if (dspAudioEngine.isActive()) {
+		dspAudioEngine.fillSpectrumChannels(smoothedChannels, NUM_CHANNELS);
+	} else {
+		for (let i = 0; i < NUM_CHANNELS; i++) {
+			const target = targetChannels[i];
+			if (target > smoothedChannels[i]) {
+				smoothedChannels[i] += (target - smoothedChannels[i]) * attackRate;
+			} else {
+				smoothedChannels[i] += (target - smoothedChannels[i]) * releaseRate;
+			}
 		}
+	}
 
+	for (let i = 0; i < NUM_CHANNELS; i++) {
 		// Crêtes flottantes (floating peaks)
 		if (smoothedChannels[i] > peaks[i]) {
 			peaks[i] = smoothedChannels[i];

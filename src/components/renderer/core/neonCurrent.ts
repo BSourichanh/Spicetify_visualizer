@@ -35,9 +35,12 @@ class NeonCurrentManager {
 		const duration = Math.max(260, Math.round(720 / speedMult));
 		const minInterval = Math.max(70, Math.round(130 / speedMult));
 
-		// Détection de l'impact de basse (punch transitoire et sub-bass)
-		const bassHit = features.punch * 0.78 + features.bassEnergy * 0.45;
-		const isPeak = (features.punch > 0.25 && features.bassEnergy > 0.2) || features.punch > 0.36;
+		// Détection de l'impact de basse (punch transitoire, sub-bass et attaques DSP)
+		const bassHit = features.punch * 0.82 + features.bassEnergy * 0.48 + features.transientEnergy * 0.35;
+		const isPeak =
+			(features.punch > 0.2 && features.bassEnergy > 0.15) ||
+			features.punch > 0.28 ||
+			(features.transientEnergy > 0.4 && features.bassEnergy > 0.18);
 
 		// Déclenchement d'un nouveau flux de courant depuis le centre
 		if (isPeak && !this.wasBassPeak && now - this.lastTriggerTime > minInterval) {

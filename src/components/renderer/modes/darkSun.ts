@@ -262,9 +262,9 @@ class CoronalPlumesLayer implements RenderLayer {
 		for (let i = 0; i < engine.plumes.length; i++) {
 			const plume = engine.plumes[i];
 			const breathe = Math.sin(timeFlow * 1.8 + i * 0.85);
-			const bassSpike = smoothBass * 0.42 + (i % 2 === 0 ? smoothPunch * 0.35 : 0);
+			const bassSpike = smoothBass * 0.55 + (i % 2 === 0 ? smoothPunch * 0.45 : 0);
 
-			const plumeReach = baseR * (1.25 + breathe * 0.18 + bassSpike + solarFlare * 0.32);
+			const plumeReach = baseR * (1.3 + breathe * 0.2 + bassSpike + solarFlare * 0.4);
 			const baseSpreadR = sunR * 1.02;
 
 			const startX = plume.cosLeft * baseSpreadR;
@@ -342,7 +342,7 @@ class RadialAudioSpectrumLayer implements RenderLayer {
 		const channels = freqBands.channels;
 		const peaks = freqBands.peaks;
 
-		const maxSpectrumH = baseR * 0.72 * (1.0 + frame.smoothBass * 0.25);
+		const maxSpectrumH = baseR * 0.82 * (1.0 + frame.smoothBass * 0.35);
 
 		ctx.save();
 		ctx.translate(cx, cy);
@@ -475,7 +475,7 @@ class ChromosphereCoreLayer implements RenderLayer {
 		ctx.translate(cx, cy);
 
 		// 1. Anneau de Chromosphère incandescente (Limb Glow)
-		const limbGrad = ctx.createRadialGradient(0, 0, sunR * 0.94, 0, 0, sunR * 1.15);
+		const limbGrad = ctx.createRadialGradient(0, 0, sunR * 0.94, 0, 0, sunR * (1.18 + smoothBass * 0.12));
 		const limbAlpha = 0.75 + smoothBass * 0.25 + solarFlare * 0.25;
 		limbGrad.addColorStop(0, palette.rimLight);
 		limbGrad.addColorStop(0.35, palette.highlight);
@@ -484,13 +484,13 @@ class ChromosphereCoreLayer implements RenderLayer {
 
 		ctx.fillStyle = limbGrad;
 		ctx.beginPath();
-		ctx.arc(0, 0, sunR * 1.15, 0, Math.PI * 2);
+		ctx.arc(0, 0, sunR * (1.18 + smoothBass * 0.12), 0, Math.PI * 2);
 		ctx.fill();
 
 		// 2. Filament de bordure blanc pur (Limb Razor Line)
 		ctx.beginPath();
 		ctx.arc(0, 0, sunR, 0, Math.PI * 2);
-		ctx.lineWidth = 1.8 + smoothPunch * 1.4;
+		ctx.lineWidth = 1.8 + smoothPunch * 2.2;
 		ctx.strokeStyle = "#ffffff";
 		ctx.shadowColor = palette.highlight;
 		ctx.shadowBlur = 10;

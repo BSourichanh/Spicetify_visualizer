@@ -54,6 +54,11 @@ export class DspAudioEngine {
 	private onsetIntervals: number[] = [];
 	private runningAmp = 0;
 	private runningPunch = 0;
+	private runningPeakRms = 0.12;
+	private runningPeakBass = 0.15;
+	private runningPeakKick = 0.15;
+	private runningPeakMid = 0.15;
+	private runningPeakTreble = 0.1;
 
 	// Buffers pré-alloués (0 allocation par frame)
 	private static readonly FFT_SIZE = 2048;
@@ -267,14 +272,19 @@ export class DspAudioEngine {
 		this.analyserNode.getFloatTimeDomainData(this.timeData);
 		this.analyserNode.getFloatFrequencyData(this.freqData);
 
-		// 2. Calcul du RMS (Root Mean Square) / Énergie instantanée
+		// 2. Calcul du RMS avec AGC adaptatif (Automatic Gain Control)
 		let sumSquares = 0;
 		for (let i = 0; i < DspAudioEngine.FFT_SIZE; i++) {
 			const s = this.timeData[i];
 			sumSquares += s * s;
 		}
 		const rms = Math.sqrt(sumSquares / DspAudioEngine.FFT_SIZE);
-		const amp = Math.min(1.0, rms * 5.5); // Normalisation plus réactive vers [0.0, 1.0]
+
+		// Suivi adaptatif du niveau de crête (plancher 0.035, plafond doux)
+		this.runningPeakRms = Math.max(rms, this.runningPeakRms * 0.9985);
+		const headroom = Math.max(0.035, this.runningPeakRms);
+		const normalizedRms = Math.min(1.0, rms / headroom);
+		const amp = Math.min(1.0, Math.pow(normalizedRms, 0.88) * 1.15);
 
 		this.runningAmp += (amp - this.runningAmp) * (amp > this.runningAmp ? 0.45 : 0.15);
 		const smoothAmp = this.runningAmp;
@@ -329,13 +339,23 @@ export class DspAudioEngine {
 			}
 		}
 
-		// Normalisation multi-bandes
-		const subBass = Math.min(1.0, subBassSum * 2.8);
-		const kick = Math.min(1.0, kickSum * 2.4);
-		const snare = Math.min(1.0, snareSum * 2.8);
-		const vocal = Math.min(1.0, vocalSum * 3.5);
-		const presence = Math.min(1.0, presenceSum * 5.0);
-		const treble = Math.min(1.0, trebleSum * 8.0);
+		// Suivi adaptatif des crêtes multi-bandes pour équilibrer le spectre
+		this.runningPeakBass = Math.max(subBassSum, this.runningPeakBass * 0.998);
+		this.runningPeakKick = Math.max(kickSum, this.runningPeakKick * 0.998);
+		this.runningPeakMid = Math.max(snareSum + vocalSum, this.runningPeakMid * 0.998);
+		this.runningPeakTreble = Math.max(trebleSum, this.runningPeakTreble * 0.998);
+
+		const bassHeadroom = Math.max(0.08, this.runningPeakBass);
+		const kickHeadroom = Math.max(0.08, this.runningPeakKick);
+		const midHeadroom = Math.max(0.12, this.runningPeakMid);
+		const trebleHeadroom = Math.max(0.06, this.runningPeakTreble);
+
+		const subBass = Math.min(1.0, (subBassSum / bassHeadroom) * 1.1);
+		const kick = Math.min(1.0, (kickSum / kickHeadroom) * 1.1);
+		const snare = Math.min(1.0, (snareSum / midHeadroom) * 1.3);
+		const vocal = Math.min(1.0, (vocalSum / midHeadroom) * 1.2);
+		const presence = Math.min(1.0, (presenceSum / trebleHeadroom) * 1.1);
+		const treble = Math.min(1.0, (trebleSum / trebleHeadroom) * 1.15);
 
 		const centroid = centroidDen > 0.0001 ? Math.min(1.0, centroidNum / centroidDen / 7000) : 0.5;
 
@@ -352,12 +372,11 @@ export class DspAudioEngine {
 		const onsetThreshold = fluxMean * 1.55 + 0.015;
 		const isOnset = spectralFlux > onsetThreshold && spectralFlux > 0.04;
 
-		if (isOnset && now - this.lastOnsetTime > 160) {
+		if (isOnset && now - this.lastOnsetTime > 140) {
 			const intervalMs = now - this.lastOnsetTime;
 			this.lastOnsetTime = now;
 
-			// Tracker de tempo (BPM) par lissage des intervalles d'attaques
-			if (intervalMs >= 240 && intervalMs <= 1200) {
+			if (intervalMs > 250 && intervalMs < 1200) {
 				this.onsetIntervals.push(intervalMs);
 				if (this.onsetIntervals.length > 8) {
 					this.onsetIntervals.shift();
@@ -368,14 +387,14 @@ export class DspAudioEngine {
 
 				const instantBpm = 60000 / avgInterval;
 				if (instantBpm >= 65 && instantBpm <= 185) {
-					this.detectedBpm += (instantBpm - this.detectedBpm) * 0.2;
+					this.detectedBpm += (instantBpm - this.detectedBpm) * 0.25;
 				}
 			}
 
-			// Punch impulsionnel
-			this.runningPunch = Math.min(1.0, this.runningPunch + 0.75 + kick * 0.4);
+			// Punch impulsionnel vif
+			this.runningPunch = Math.min(1.0, this.runningPunch + 0.85 + kick * 0.35);
 		} else {
-			this.runningPunch *= 0.86;
+			this.runningPunch *= 0.82;
 		}
 
 		// Phase du beat synchronisé sur le BPM détecté
@@ -438,6 +457,42 @@ export class DspAudioEngine {
 		// Injection des 12 chromas dans pitches
 		for (let i = 0; i < 12; i++) {
 			features.pitches[i] = Math.max(features.pitches[i], dsp.chroma[i]);
+		}
+	}
+
+	/**
+	 * Échantillonne 36 canaux de spectre logarithmiques directement depuis la FFT DSP 2048 points
+	 */
+	public fillSpectrumChannels(target: number[], count = 36): void {
+		if (!this.isCapturing || !this.analyserNode) return;
+
+		const sampleRate = this.audioCtx?.sampleRate ?? 44100;
+		const binWidth = sampleRate / DspAudioEngine.FFT_SIZE;
+		const minFreq = 25;
+		const maxFreq = 16000;
+		const logMin = Math.log10(minFreq);
+		const logMax = Math.log10(maxFreq);
+
+		for (let i = 0; i < count; i++) {
+			const fStart = Math.pow(10, logMin + (i / count) * (logMax - logMin));
+			const fEnd = Math.pow(10, logMin + ((i + 1) / count) * (logMax - logMin));
+
+			const bStart = Math.max(1, Math.floor(fStart / binWidth));
+			const bEnd = Math.min(DspAudioEngine.BIN_COUNT - 1, Math.ceil(fEnd / binWidth));
+
+			let maxMag = 0;
+			for (let b = bStart; b <= bEnd; b++) {
+				const db = this.freqData[b];
+				if (db > -80) {
+					const mag = Math.pow(10, (db + 6) / 20);
+					if (mag > maxMag) maxMag = mag;
+				}
+			}
+
+			const trebleComp = 1.0 + (i / count) * 1.8;
+			const targetVal = Math.max(0.04, Math.min(1.0, maxMag * 2.6 * trebleComp));
+			const prev = target[i] || 0.04;
+			target[i] = prev + (targetVal - prev) * (targetVal > prev ? 0.65 : 0.22);
 		}
 	}
 }

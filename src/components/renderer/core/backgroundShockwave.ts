@@ -61,10 +61,12 @@ class BackgroundShockwaveEngine {
 		const effectiveBass = features.bassEnergy * sensitivity;
 		const bassHit = effectivePunch * 0.76 + effectiveBass * 0.44;
 
-		// Détection d'un front d'attaque (kick / percussion) :
+		// Détection d'un front d'attaque (kick / percussion / onset DSP) :
 		// Dans les drops, le sub-bass est continu (>0.6), mais chaque kick crée une impulsion de punch
-		const isKickAttack = effectivePunch > 0.26 && (effectivePunch > this.prevPunch + 0.04 || effectivePunch > 0.42);
-		const isBassDropImpact = bassHit > 0.48 && effectivePunch > 0.22;
+		const isKickAttack =
+			(effectivePunch > 0.22 && (effectivePunch > this.prevPunch + 0.03 || effectivePunch > 0.36)) ||
+			(features.transientEnergy > 0.45 && effectiveBass > 0.2);
+		const isBassDropImpact = bassHit > 0.42 && effectivePunch > 0.18;
 
 		const cooldown = Math.max(160, Math.round(250 / Math.min(1.6, Math.max(0.6, sensitivity))));
 

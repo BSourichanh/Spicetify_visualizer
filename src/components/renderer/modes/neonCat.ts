@@ -284,9 +284,9 @@ class FriendlyNekoEngine {
 		// Scintillement néon
 		this.transformerFlicker = Math.random() < 0.04 ? 0.45 + Math.random() * 0.5 : 1.0;
 
-		// Glitch : déclenchement musical sur kicks percutants ou drops (aucun glitch aléatoire sur musique calme)
-		const isHeavyKick = punch > 0.42 || (bass > 0.62 && punch > 0.22);
-		const isMicroStutter = punch > 0.35 && Math.random() < 0.04;
+		// Glitch : déclenchement musical sur kicks percutants ou drops
+		const isHeavyKick = punch > 0.35 || (bass > 0.5 && punch > 0.18);
+		const isMicroStutter = punch > 0.28 && Math.random() < 0.06;
 		const currentBurst = isHeavyKick ? punch * 1.6 : isMicroStutter ? 0.35 : 0;
 		this.glitchEnergy = Math.max(this.glitchEnergy * 0.68, currentBurst);
 

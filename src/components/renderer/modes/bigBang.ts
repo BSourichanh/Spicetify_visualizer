@@ -169,13 +169,13 @@ export class BigBangPhysicsEngine {
 		const threshold = settings?.bigBangWaveThreshold ?? 0.68;
 
 		// Détection musicale normalisée : impact combiné de basse et attaque transitoire
-		const bassImpact = bass * 0.55 + punch * 0.6 + transient * 0.35;
+		const bassImpact = bass * 0.6 + punch * 0.65 + transient * 0.45;
 		const isHighBassExplosion =
-			punch > Math.min(0.85, threshold * 0.8) ||
-			(bass >= threshold && (punch > 0.2 || transient > 0.1 || punchDelta > 0.04)) ||
-			bassImpact >= threshold * 0.9;
+			punch > Math.min(0.72, threshold * 0.75) ||
+			(bass >= threshold * 0.9 && (punch > 0.18 || transient > 0.1 || punchDelta > 0.03)) ||
+			bassImpact >= threshold * 0.82;
 
-		const cooldown = Math.max(200, Math.round(280 / speedScale));
+		const cooldown = Math.max(180, Math.round(260 / speedScale));
 		if (waveEnabled && isHighBassExplosion && now - this.lastPunchTime > cooldown) {
 			this.lastPunchTime = now;
 			this.spawnShockwave(
