@@ -10,6 +10,8 @@ import { useFullscreenElement, useMouseRecentlyMoved } from "./hooks";
 import { MetadataService } from "spicetify-utils";
 import { LoaderID, LOADERS, RENDERERS, TrackData } from "./defs";
 import { AudioSyncManager } from "./audio-sync";
+import { dspAudioEngine } from "./components/renderer/visualizerUtils";
+import { getVisualizerSettings } from "./settings/settingsManager";
 
 type VisualizerState =
 	| {
@@ -76,6 +78,16 @@ export default function App(props: {
 	useEffect(() => {
 		AudioSyncManager.addReference();
 		return AudioSyncManager.removeReference.bind(AudioSyncManager);
+	}, []);
+
+	// Auto-connexion DSP si configuré ou si la source est DSP
+	useEffect(() => {
+		const s = getVisualizerSettings();
+		if ((s.audioSource === "dsp" || s.dspAutoCapture) && !dspAudioEngine.isActive()) {
+			dspAudioEngine.startCapture().catch(err => {
+				console.warn("[Visualizer] Auto-start DSP capture failed:", err);
+			});
+		}
 	}, []);
 
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);

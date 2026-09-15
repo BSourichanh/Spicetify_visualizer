@@ -51,6 +51,7 @@ export type VisualizerSettings = {
 	butterflyCameraAngle: "threeQuarter" | "dynamicOrbit" | "isometric" | "topDown"; // default "threeQuarter" (Angle de caméra 3D du Cyber Butterfly)
 	audioSource: "auto" | "spotify" | "dsp"; // default "auto" (Source audio : Auto, API Spotify ou DSP temps-réel)
 	dspSensitivity: number; // 0.2 to 2.5, default 1.0 (Sensibilité du moteur DSP temps-réel)
+	dspAutoCapture: boolean; // default false (Démarrage automatique de la capture audio DSP au lancement)
 	enabledRandomModes: string[]; // Liste des IDs de modes autorisés en mode Aléatoire (vide = tous)
 	enabledChaosModes: string[]; // Liste des IDs de modes autorisés en mode Chaos (vide = tous)
 };
@@ -58,6 +59,7 @@ export type VisualizerSettings = {
 export const DEFAULT_SETTINGS: VisualizerSettings = {
 	audioSource: "auto",
 	dspSensitivity: 1.0,
+	dspAutoCapture: false,
 	punchScale: 1.0,
 	bassScale: 1.0,
 	trebleScale: 1.0,
@@ -301,6 +303,10 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.dspSensitivity === "number"
 						? Math.max(0.2, Math.min(2.5, parsed.dspSensitivity))
 						: DEFAULT_SETTINGS.dspSensitivity,
+				dspAutoCapture:
+					typeof parsed.dspAutoCapture === "boolean"
+						? parsed.dspAutoCapture
+						: DEFAULT_SETTINGS.dspAutoCapture,
 				enabledRandomModes: Array.isArray(parsed.enabledRandomModes)
 					? parsed.enabledRandomModes.filter((id: unknown) => typeof id === "string")
 					: DEFAULT_SETTINGS.enabledRandomModes,

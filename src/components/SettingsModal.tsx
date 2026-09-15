@@ -82,9 +82,13 @@ export default function SettingsModal(props: SettingsModalProps) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [props.isOpen, props.onClose]);
 
-	const handleAudioSourceChange = (src: "auto" | "spotify" | "dsp") => {
+	const handleAudioSourceChange = async (src: "auto" | "spotify" | "dsp") => {
 		const updated = updateVisualizerSettings({ audioSource: src });
 		setSettings({ ...updated });
+		if (src === "dsp" && !dspAudioEngine.isActive()) {
+			const success = await dspAudioEngine.startCapture();
+			setDspCapturing(success);
+		}
 	};
 
 	const handleToggleDspCapture = async () => {
@@ -328,6 +332,26 @@ export default function SettingsModal(props: SettingsModalProps) {
 										</div>
 									</div>
 								)}
+
+								{/* Option de capture automatique au lancement */}
+								<div
+									className={styles.control_header}
+									style={{
+										marginTop: "4px",
+										paddingTop: "8px",
+										borderTop: "1px solid rgba(255,255,255,0.06)"
+									}}
+								>
+									<span style={{ fontSize: "0.8rem", color: "#b3b3b3" }}>
+										⚡ Auto-démarrage au lancement
+									</span>
+									<button
+										className={`${styles.toggle_btn} ${settings.dspAutoCapture ? styles.active : ""}`}
+										onClick={() => handleToggleChange("dspAutoCapture")}
+									>
+										{settings.dspAutoCapture ? "ON" : "OFF"}
+									</button>
+								</div>
 							</div>
 
 							{/* DSP Sensitivity Slider */}
