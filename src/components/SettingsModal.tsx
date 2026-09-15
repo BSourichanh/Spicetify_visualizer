@@ -28,6 +28,7 @@ const COLOR_PRESETS = [
 const SPECIFIC_MODELS = [
 	{ id: "all", name: "Tous", icon: "📑" },
 	{ id: "neon-cat", name: "Cyber Neko", icon: "🐱" },
+	{ id: "cyber-butterfly", name: "Cyber Butterfly", icon: "🦋" },
 	{ id: "spectrum", name: "Liquid Spectrum", icon: "🌊" },
 	{ id: "kaleido", name: "Astral Lotus", icon: "🌸" },
 	{ id: "big-bang", name: "Big Bang", icon: "💥" }
@@ -76,6 +77,11 @@ export default function SettingsModal(props: SettingsModalProps) {
 		setSettings({ ...updated });
 	};
 
+	const handleCameraAngleChange = (angle: "threeQuarter" | "dynamicOrbit" | "isometric" | "topDown") => {
+		const updated = updateVisualizerSettings({ butterflyCameraAngle: angle });
+		setSettings({ ...updated });
+	};
+
 	const handleColorModeChange = (mode: "theme" | "custom") => {
 		const updated = updateVisualizerSettings({ colorMode: mode });
 		setSettings({ ...updated });
@@ -88,16 +94,29 @@ export default function SettingsModal(props: SettingsModalProps) {
 
 	const isRandomActive = (modeId: string): boolean => {
 		if (!settings.enabledRandomModes || settings.enabledRandomModes.length === 0) return true;
+		if (modeId === "dark-sun" && !settings.enabledRandomModes.includes("dark-sun")) {
+			const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+				settings.enabledRandomModes.includes(id)
+			).length;
+			if (oldModesCount >= 3) return true;
+		}
 		return settings.enabledRandomModes.includes(modeId);
 	};
 
 	const toggleRandomMode = (modeId: string) => {
 		const eligible = ACTIVE_MODES.filter(m => Boolean(m) && m.randomPool !== false);
 		const allIds = eligible.map(m => m.id);
-		const currentList =
+		let currentList =
 			!settings.enabledRandomModes || settings.enabledRandomModes.length === 0
 				? allIds
 				: [...settings.enabledRandomModes];
+
+		if (!currentList.includes("dark-sun")) {
+			const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+				currentList.includes(id)
+			).length;
+			if (oldModesCount >= 3) currentList.push("dark-sun");
+		}
 
 		let updatedList: string[];
 		if (currentList.includes(modeId)) {
@@ -121,16 +140,29 @@ export default function SettingsModal(props: SettingsModalProps) {
 
 	const isChaosActive = (modeId: string): boolean => {
 		if (!settings.enabledChaosModes || settings.enabledChaosModes.length === 0) return true;
+		if (modeId === "dark-sun" && !settings.enabledChaosModes.includes("dark-sun")) {
+			const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+				settings.enabledChaosModes.includes(id)
+			).length;
+			if (oldModesCount >= 3) return true;
+		}
 		return settings.enabledChaosModes.includes(modeId);
 	};
 
 	const toggleChaosMode = (modeId: string) => {
 		const eligible = ACTIVE_MODES.filter(m => Boolean(m) && m.randomPool !== false);
 		const allIds = eligible.map(m => m.id);
-		const currentList =
+		let currentList =
 			!settings.enabledChaosModes || settings.enabledChaosModes.length === 0
 				? allIds
 				: [...settings.enabledChaosModes];
+
+		if (!currentList.includes("dark-sun")) {
+			const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+				currentList.includes(id)
+			).length;
+			if (oldModesCount >= 3) currentList.push("dark-sun");
+		}
 
 		let updatedList: string[];
 		if (currentList.includes(modeId)) {
@@ -919,7 +951,107 @@ export default function SettingsModal(props: SettingsModalProps) {
 							</div>
 						)}
 
-						{/* 4. BIG BANG COSMIC ORIGIN */}
+						{/* 4. CYBER BUTTERFLY */}
+						{(selectedModel === "all" || selectedModel === "cyber-butterfly") && (
+							<div
+								className={`${styles.model_card} ${props.currentRendererId === "cyber-butterfly" ? styles.active_model_card : ""}`}
+							>
+								<div className={styles.model_card_header}>
+									<h3>🦋 Cyber Butterfly</h3>
+									{props.currentRendererId === "cyber-butterfly" && (
+										<span className={styles.now_playing_badge}>Modèle en cours</span>
+									)}
+								</div>
+
+								<div
+									style={{
+										fontSize: "0.78rem",
+										color: "#b3b3b3",
+										lineHeight: 1.4,
+										padding: "4px 0"
+									}}
+								>
+									Grand Morpho Cybernétique en vol 3D dynamique. Battement d'ailes aéroélastique en
+									onde progressive, anneaux orbitaux gyroscopiques, membranes vitrail irisées et
+									flares laser anamorphiques.
+								</div>
+
+								<div className={styles.control_group} style={{ marginTop: "12px" }}>
+									<label className={styles.control_label}>
+										<span>Perspective de Caméra 3D</span>
+										<span className={styles.value_display}>
+											{settings.butterflyCameraAngle === "dynamicOrbit"
+												? "Orbite 360°"
+												: settings.butterflyCameraAngle === "isometric"
+													? "Isométrique"
+													: settings.butterflyCameraAngle === "topDown"
+														? "Vue Dessus"
+														: "3/4 Aérienne (Vol)"}
+										</span>
+									</label>
+									<div
+										style={{
+											display: "grid",
+											gridTemplateColumns: "1fr 1fr",
+											gap: "6px",
+											marginTop: "6px"
+										}}
+									>
+										<button
+											type="button"
+											className={`${styles.toggle_btn} ${
+												!settings.butterflyCameraAngle ||
+												settings.butterflyCameraAngle === "threeQuarter"
+													? styles.active_toggle_btn
+													: ""
+											}`}
+											onClick={() => handleCameraAngleChange("threeQuarter")}
+											style={{ fontSize: "0.74rem", padding: "6px 8px" }}
+										>
+											✈️ 3/4 Aérienne (Vol)
+										</button>
+										<button
+											type="button"
+											className={`${styles.toggle_btn} ${
+												settings.butterflyCameraAngle === "dynamicOrbit"
+													? styles.active_toggle_btn
+													: ""
+											}`}
+											onClick={() => handleCameraAngleChange("dynamicOrbit")}
+											style={{ fontSize: "0.74rem", padding: "6px 8px" }}
+										>
+											🔄 Orbite 360°
+										</button>
+										<button
+											type="button"
+											className={`${styles.toggle_btn} ${
+												settings.butterflyCameraAngle === "isometric"
+													? styles.active_toggle_btn
+													: ""
+											}`}
+											onClick={() => handleCameraAngleChange("isometric")}
+											style={{ fontSize: "0.74rem", padding: "6px 8px" }}
+										>
+											📐 Isométrique 3D
+										</button>
+										<button
+											type="button"
+											className={`${styles.toggle_btn} ${
+												settings.butterflyCameraAngle === "topDown"
+													? styles.active_toggle_btn
+													: ""
+											}`}
+											onClick={() => handleCameraAngleChange("topDown")}
+											style={{ fontSize: "0.74rem", padding: "6px 8px" }}
+										>
+											📌 Vue Dessus
+										</button>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* 5. BIG BANG COSMIC ORIGIN */}
 						{(selectedModel === "all" || selectedModel === "big-bang") && (
 							<div
 								className={`${styles.model_card} ${props.currentRendererId === "big-bang" ? styles.active_model_card : ""}`}

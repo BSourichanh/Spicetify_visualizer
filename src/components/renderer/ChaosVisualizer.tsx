@@ -14,7 +14,17 @@ function getEligibleModes(settings: VisualizerSettings): ModeConfig[] {
 	const all = ACTIVE_MODES.filter(m => Boolean(m) && m.randomPool !== false);
 	const enabled = settings.enabledChaosModes;
 	if (Array.isArray(enabled) && enabled.length > 0) {
-		const filtered = all.filter(m => enabled.includes(m.id));
+		const filtered = all.filter(m => {
+			if (enabled.includes(m.id)) return true;
+			// Si un nouveau mode (comme dark-sun) n'était pas dans la configuration sauvegardée
+			if (m.id === "dark-sun" && !enabled.includes("dark-sun")) {
+				const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+					enabled.includes(id)
+				).length;
+				if (oldModesCount >= 3) return true;
+			}
+			return false;
+		});
 		if (filtered.length > 0) {
 			return filtered;
 		}
@@ -34,7 +44,7 @@ function createChaosRenderer(): ModeRenderFunction {
 		cachedModes = getEligibleModes(newSettings);
 	});
 
-	return (ctx, width, height, features, palette) => {
+	return (ctx, width, height, features, palette, analysis) => {
 		if (cachedModes.length === 0) {
 			cachedModes = getEligibleModes(getVisualizerSettings());
 			currentModeIndex = Math.floor(Math.random() * Math.max(1, cachedModes.length));
@@ -82,7 +92,7 @@ function createChaosRenderer(): ModeRenderFunction {
 		// Rendu du mode actif sélectionné
 		const activeMode = modes[currentModeIndex % modes.length];
 		if (activeMode && activeMode.render) {
-			activeMode.render(ctx, width, height, features, palette);
+			activeMode.render(ctx, width, height, features, palette, analysis);
 		}
 	};
 }

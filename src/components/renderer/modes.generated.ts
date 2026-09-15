@@ -11,14 +11,14 @@ import { createCanvasVisualizer, ModeConfig } from "./createCanvasVisualizer";
 import { modeConfig as mode_0_astralLotus } from "./modes/astralLotus";
 import { modeConfig as mode_1_bigBang } from "./modes/bigBang";
 import { modeConfig as mode_2_cosmicNebula } from "./modes/cosmicNebula";
-import { modeConfig as mode_3_liquidSpectrum } from "./modes/liquidSpectrum";
+import { modeConfig as mode_3_darkSun } from "./modes/darkSun";
 import { modeConfig as mode_4_neonCat } from "./modes/neonCat";
 
 export const ACTIVE_MODES: ModeConfig[] = [
 	mode_0_astralLotus,
 	mode_1_bigBang,
 	mode_2_cosmicNebula,
-	mode_3_liquidSpectrum,
+	mode_3_darkSun,
 	mode_4_neonCat
 ];
 

@@ -34,44 +34,90 @@ export function extractFrequencyBands(
 	lastTimestamp = now;
 
 	// Si en pause, on retourne l'état actuel figé
-	if (!isPlaying || !analysis?.segments || analysis.segments.length === 0) {
+	if (!isPlaying) {
 		return {
-			subBass: isPlaying ? features.bassEnergy * 0.6 : 0,
-			kick: isPlaying ? features.punch : 0,
-			snare: isPlaying ? features.midEnergy * 0.5 : 0,
-			vocal: isPlaying ? features.midEnergy * 0.7 : 0,
-			presence: isPlaying ? features.trebleEnergy * 0.6 : 0,
-			treble: isPlaying ? features.trebleEnergy : 0,
+			subBass: 0,
+			kick: 0,
+			snare: 0,
+			vocal: 0,
+			presence: 0,
+			treble: 0,
 			channels: [...smoothedChannels],
 			peaks: [...peaks]
 		};
 	}
 
-	// 1. Recherche du segment temporel actif
-	const segIndex = Math.max(
-		0,
-		Math.min(
-			analysis.segments.length - 1,
-			binarySearchIndex(analysis.segments, s => s.start, progress)
-		)
-	);
-	const segment = analysis.segments[segIndex];
-	const pitches = segment?.pitches ?? [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
-	const timbre = segment?.timbre ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	let pitches: number[];
+	let timbre: number[];
+	let instAmp: number;
+	let isFastAttack = features.punch > 0.45;
+	let normAttack = features.punch;
+	let isSustained = features.energy > 0.4;
 
-	// Calcul de l'amplitude instantanée à l'intérieur du segment
-	const segTime = Math.max(0, progress - segment.start);
-	const maxTime = Math.max(0.02, segment.loudness_max_time ?? 0.06);
-	let currentLoudnessDb = segment.loudness_start;
-	if (segTime <= maxTime) {
-		const ratio = segTime / maxTime;
-		currentLoudnessDb = segment.loudness_start + (segment.loudness_max - segment.loudness_start) * ratio;
+	if (analysis?.segments && analysis.segments.length > 0) {
+		// 1. Recherche du segment temporel actif
+		const segIndex = Math.max(
+			0,
+			Math.min(
+				analysis.segments.length - 1,
+				binarySearchIndex(analysis.segments, s => s.start, progress)
+			)
+		);
+		const segment = analysis.segments[segIndex];
+		pitches = segment?.pitches ?? [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+		timbre = segment?.timbre ?? [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+		// Calcul de l'amplitude instantanée à l'intérieur du segment
+		const segTime = Math.max(0, progress - segment.start);
+		const maxTime = Math.max(0.02, segment.loudness_max_time ?? 0.06);
+		let currentLoudnessDb = segment.loudness_start;
+		if (segTime <= maxTime) {
+			const ratio = segTime / maxTime;
+			currentLoudnessDb = segment.loudness_start + (segment.loudness_max - segment.loudness_start) * ratio;
+		} else {
+			const remDuration = Math.max(0.02, segment.duration - maxTime);
+			const ratio = Math.min(1.0, (segTime - maxTime) / remDuration);
+			currentLoudnessDb = segment.loudness_max + (segment.loudness_end - segment.loudness_max) * ratio;
+		}
+		instAmp = decibelsToAmplitude(currentLoudnessDb);
+
+		isFastAttack = (segment.loudness_max_time ?? 0.08) < 0.095;
+		const attackRiseDb = Math.max(0, segment.loudness_max - segment.loudness_start);
+		normAttack = Math.min(1.0, attackRiseDb / 18);
+		isSustained = (segment.loudness_max_time ?? 0.08) > 0.08;
 	} else {
-		const remDuration = Math.max(0.02, segment.duration - maxTime);
-		const ratio = Math.min(1.0, (segTime - maxTime) / remDuration);
-		currentLoudnessDb = segment.loudness_max + (segment.loudness_end - segment.loudness_max) * ratio;
+		// Repli dynamique réactif : synthèse harmonique fluide à partir des métriques audio réelles
+		const t = features.energyTime;
+		pitches = [
+			0.2 + 0.3 * Math.sin(t * 1.7),
+			0.3 + 0.4 * Math.sin(t * 2.3 + 1),
+			0.25 + 0.35 * Math.cos(t * 1.9 + 2),
+			0.4 + 0.4 * Math.sin(t * 3.1 + 0.5),
+			0.2 + 0.3 * Math.cos(t * 2.7 + 1.5),
+			0.5 + 0.3 * Math.sin(t * 1.5 + 3),
+			0.3 + 0.4 * Math.cos(t * 2.1 + 0.8),
+			0.2 + 0.35 * Math.sin(t * 2.9 + 2.2),
+			0.35 + 0.35 * Math.cos(t * 1.8 + 1.2),
+			0.25 + 0.4 * Math.sin(t * 2.4 + 0.3),
+			0.4 + 0.3 * Math.cos(t * 3.3 + 2.7),
+			0.3 + 0.35 * Math.sin(t * 2.0 + 1.9)
+		];
+		timbre = [
+			features.amplitude * 40 - 20,
+			(features.trebleEnergy - features.bassEnergy) * 30,
+			features.punch * 20,
+			features.midEnergy * 15,
+			features.bassEnergy * 25 - 10,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0
+		];
+		instAmp = Math.max(0.05, features.amplitude);
 	}
-	const instAmp = decibelsToAmplitude(currentLoudnessDb);
 
 	// 2. Détection physique des 6 bandes acoustiques clés
 	// Pondération globale par l'amplitude réelle pour préserver la sérénité des morceaux calmes
@@ -88,9 +134,6 @@ export function extractFrequencyBands(
 	);
 
 	// B. Kick / Punch (60 - 250 Hz) : Attaque percutante de la grosse caisse
-	const isFastAttack = (segment.loudness_max_time ?? 0.08) < 0.095;
-	const attackRiseDb = Math.max(0, segment.loudness_max - segment.loudness_start);
-	const normAttack = Math.min(1.0, attackRiseDb / 18);
 	const kick = Math.min(
 		1.0,
 		ampGate *
@@ -115,7 +158,6 @@ export function extractFrequencyBands(
 	const maxPitch = Math.max(...pitches);
 	const avgPitch = pitches.reduce((a, b) => a + b, 0) / 12;
 	const pitchContrast = Math.max(0, maxPitch - avgPitch); // Clarté d'une note de voix vs bruit blanc
-	const isSustained = (segment.loudness_max_time ?? 0.08) > 0.08;
 	const vocal = Math.min(
 		1.0,
 		ampGate * (features.midEnergy * 0.45 + pitchContrast * 0.4 + (isSustained ? instAmp * 0.25 : 0))

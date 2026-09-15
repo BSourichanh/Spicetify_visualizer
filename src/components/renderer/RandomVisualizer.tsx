@@ -17,7 +17,16 @@ export default function RandomVisualizer(props: RendererProps) {
 		const basePool = Array.isArray(GENERATED_RANDOM_VISUALIZERS) ? GENERATED_RANDOM_VISUALIZERS : [];
 		const enabled = settings.enabledRandomModes;
 		if (Array.isArray(enabled) && enabled.length > 0) {
-			const filtered = basePool.filter(m => enabled.includes(m.id));
+			const filtered = basePool.filter(m => {
+				if (enabled.includes(m.id)) return true;
+				if (m.id === "dark-sun" && !enabled.includes("dark-sun")) {
+					const oldModesCount = ["kaleido", "big-bang", "neon-waves", "neon-cat"].filter(id =>
+						enabled.includes(id)
+					).length;
+					if (oldModesCount >= 3) return true;
+				}
+				return false;
+			});
 			if (filtered.length > 0) {
 				return filtered;
 			}

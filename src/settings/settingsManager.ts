@@ -48,6 +48,7 @@ export type VisualizerSettings = {
 	glitchIntensity: number; // 0.2 to 2.5, default 1.0 (Intensité des décalages et distorsions)
 	glitchAberration: boolean; // default true (Activer la dispersion chromatique RVB / split holographique)
 	glitchScanlines: boolean; // default true (Activer les lignes de balayage CRT et barres de tracking)
+	butterflyCameraAngle: "threeQuarter" | "dynamicOrbit" | "isometric" | "topDown"; // default "threeQuarter" (Angle de caméra 3D du Cyber Butterfly)
 	enabledRandomModes: string[]; // Liste des IDs de modes autorisés en mode Aléatoire (vide = tous)
 	enabledChaosModes: string[]; // Liste des IDs de modes autorisés en mode Chaos (vide = tous)
 };
@@ -96,6 +97,7 @@ export const DEFAULT_SETTINGS: VisualizerSettings = {
 	glitchIntensity: 1.0,
 	glitchAberration: true,
 	glitchScanlines: true,
+	butterflyCameraAngle: "threeQuarter",
 	enabledRandomModes: [],
 	enabledChaosModes: []
 };
@@ -283,6 +285,12 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					typeof parsed.glitchScanlines === "boolean"
 						? parsed.glitchScanlines
 						: DEFAULT_SETTINGS.glitchScanlines,
+				butterflyCameraAngle:
+					parsed.butterflyCameraAngle === "dynamicOrbit" ||
+					parsed.butterflyCameraAngle === "isometric" ||
+					parsed.butterflyCameraAngle === "topDown"
+						? parsed.butterflyCameraAngle
+						: "threeQuarter",
 				enabledRandomModes: Array.isArray(parsed.enabledRandomModes)
 					? parsed.enabledRandomModes.filter((id: unknown) => typeof id === "string")
 					: DEFAULT_SETTINGS.enabledRandomModes,
