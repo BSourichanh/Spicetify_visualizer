@@ -9,6 +9,7 @@ import {
 	drawBigBangAmbient,
 	drawCyberGlitch,
 	drawFireflies,
+	dspAudioEngine,
 	extractAudioFeatures,
 	getThemeColor,
 	getThemePalette,
@@ -92,11 +93,49 @@ export function createCanvasVisualizer(render: ModeRenderFunction, modeName = "V
 						ctx.fillRect(0, 0, width, height);
 					}
 
-					const isPlaying =
+					const spotifyPlaying =
 						typeof Spicetify?.Player?.isPlaying === "function" ? Spicetify.Player.isPlaying() : true;
 					const progress = AudioSyncManager.getProgress();
 
+					// Traitement DSP temps-réel (Méthode C)
+					const isDspCapturing = dspAudioEngine.isActive();
+					if (isDspCapturing) {
+						dspAudioEngine.processFrame(performance.now());
+					}
+					const dspResult = dspAudioEngine.getResult();
+
+					// Détermination du mode source audio (auto | spotify | dsp)
+					const useDspDirectly =
+						isDspCapturing &&
+						(settings.audioSource === "dsp" || (settings.audioSource === "auto" && !data.audioAnalysis));
+
+					const isPlaying = useDspDirectly ? isDspCapturing && dspResult.amplitude > 0.005 : spotifyPlaying;
+
 					const rawFeatures = extractAudioFeatures(data.audioAnalysis, data.amplitudeCurve, progress);
+
+					// Injection des données DSP si applicable
+					if (useDspDirectly) {
+						const sens = settings.dspSensitivity ?? 1.0;
+						rawFeatures.amplitude = Math.min(1.0, dspResult.amplitude * sens);
+						rawFeatures.smoothAmp = Math.min(1.0, dspResult.smoothAmp * sens);
+						rawFeatures.bassEnergy = Math.min(1.0, (dspResult.subBass * 0.6 + dspResult.kick * 0.5) * sens);
+						rawFeatures.punch = Math.min(1.0, dspResult.punch * sens);
+						rawFeatures.midEnergy = Math.min(1.0, (dspResult.snare * 0.4 + dspResult.vocal * 0.6) * sens);
+						rawFeatures.trebleEnergy = Math.min(
+							1.0,
+							(dspResult.presence * 0.4 + dspResult.treble * 0.6) * sens
+						);
+						rawFeatures.spectralCentroid = dspResult.spectralCentroid;
+						rawFeatures.beatIntensity = dspResult.beatPulse;
+						rawFeatures.transientEnergy = dspResult.isOnset ? 1.0 : 0;
+						rawFeatures.tempo = dspResult.detectedBpm;
+						for (let i = 0; i < 12; i++) {
+							rawFeatures.pitches[i] = dspResult.chroma[i];
+						}
+					} else if (isDspCapturing && settings.audioSource === "auto") {
+						dspAudioEngine.injectFeatures(rawFeatures, settings.dspSensitivity ?? 1.0);
+					}
+
 					const bassEnergy = isPlaying
 						? Math.max(0.05, Math.min(1.0, rawFeatures.bassEnergy * (settings.bassScale ?? 1.0)))
 						: 0.05;

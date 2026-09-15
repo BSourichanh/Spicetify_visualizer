@@ -49,11 +49,15 @@ export type VisualizerSettings = {
 	glitchAberration: boolean; // default true (Activer la dispersion chromatique RVB / split holographique)
 	glitchScanlines: boolean; // default true (Activer les lignes de balayage CRT et barres de tracking)
 	butterflyCameraAngle: "threeQuarter" | "dynamicOrbit" | "isometric" | "topDown"; // default "threeQuarter" (Angle de caméra 3D du Cyber Butterfly)
+	audioSource: "auto" | "spotify" | "dsp"; // default "auto" (Source audio : Auto, API Spotify ou DSP temps-réel)
+	dspSensitivity: number; // 0.2 to 2.5, default 1.0 (Sensibilité du moteur DSP temps-réel)
 	enabledRandomModes: string[]; // Liste des IDs de modes autorisés en mode Aléatoire (vide = tous)
 	enabledChaosModes: string[]; // Liste des IDs de modes autorisés en mode Chaos (vide = tous)
 };
 
 export const DEFAULT_SETTINGS: VisualizerSettings = {
+	audioSource: "auto",
+	dspSensitivity: 1.0,
 	punchScale: 1.0,
 	bassScale: 1.0,
 	trebleScale: 1.0,
@@ -291,6 +295,12 @@ export function loadVisualizerSettings(): VisualizerSettings {
 					parsed.butterflyCameraAngle === "topDown"
 						? parsed.butterflyCameraAngle
 						: "threeQuarter",
+				audioSource:
+					parsed.audioSource === "dsp" || parsed.audioSource === "spotify" ? parsed.audioSource : "auto",
+				dspSensitivity:
+					typeof parsed.dspSensitivity === "number"
+						? Math.max(0.2, Math.min(2.5, parsed.dspSensitivity))
+						: DEFAULT_SETTINGS.dspSensitivity,
 				enabledRandomModes: Array.isArray(parsed.enabledRandomModes)
 					? parsed.enabledRandomModes.filter((id: unknown) => typeof id === "string")
 					: DEFAULT_SETTINGS.enabledRandomModes,

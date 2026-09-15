@@ -29,3 +29,6 @@ export * from "./core/frequencyBands";
 
 // Universal Cyberpunk Glitch Post-Processing Engine
 export * from "./core/glitchFx";
+
+// Real-Time DSP Audio Analysis & Feature Extraction Engine (Method C)
+export * from "./core/dspAudioEngine";

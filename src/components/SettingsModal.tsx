@@ -9,6 +9,7 @@ import {
 	VisualizerSettings
 } from "../settings/settingsManager";
 import { ACTIVE_MODES } from "./renderer/modes.generated";
+import { dspAudioEngine } from "./renderer/visualizerUtils";
 
 type SettingsModalProps = {
 	isOpen: boolean;
@@ -38,11 +39,33 @@ export default function SettingsModal(props: SettingsModalProps) {
 	const [settings, setSettings] = useState<VisualizerSettings>(() => getVisualizerSettings());
 	const [mainTab, setMainTab] = useState<"global" | "models">("global");
 	const [selectedModel, setSelectedModel] = useState<string>("all");
+	const [dspCapturing, setDspCapturing] = useState<boolean>(() => dspAudioEngine.isActive());
+	const [dspBpm, setDspBpm] = useState<number>(() => dspAudioEngine.getResult().detectedBpm);
+	const [dspKick, setDspKick] = useState<number>(() => dspAudioEngine.getResult().kick);
 
 	useEffect(() => {
 		if (props.isOpen) {
 			setSettings(getVisualizerSettings());
+			setDspCapturing(dspAudioEngine.isActive());
 		}
+	}, [props.isOpen]);
+
+	// Mise à jour de l'état DSP quand le modal est ouvert
+	useEffect(() => {
+		if (!props.isOpen) return;
+
+		const interval = setInterval(() => {
+			if (dspAudioEngine.isActive()) {
+				const res = dspAudioEngine.getResult();
+				setDspCapturing(true);
+				setDspBpm(res.detectedBpm);
+				setDspKick(res.kick);
+			} else {
+				setDspCapturing(false);
+			}
+		}, 150);
+
+		return () => clearInterval(interval);
 	}, [props.isOpen]);
 
 	// Fermeture sur touche Echap
@@ -58,6 +81,21 @@ export default function SettingsModal(props: SettingsModalProps) {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [props.isOpen, props.onClose]);
+
+	const handleAudioSourceChange = (src: "auto" | "spotify" | "dsp") => {
+		const updated = updateVisualizerSettings({ audioSource: src });
+		setSettings({ ...updated });
+	};
+
+	const handleToggleDspCapture = async () => {
+		if (dspAudioEngine.isActive()) {
+			dspAudioEngine.stopCapture();
+			setDspCapturing(false);
+		} else {
+			const success = await dspAudioEngine.startCapture();
+			setDspCapturing(success);
+		}
+	};
 
 	if (!props.isOpen) return null;
 
@@ -224,6 +262,90 @@ export default function SettingsModal(props: SettingsModalProps) {
 							<span>🌐 Mode Global :</span> Ces options s'appliquent à tous les modèles. Les dynamiques
 							sont calibrées automatiquement : les morceaux calmes restent doux et sereins, tandis que les
 							drops et musiques énergiques explosent avec précision sans avoir à retoucher les réglages.
+						</div>
+
+						{/* SOURCE AUDIO & ANALYSE DSP (MÉTHODE C) */}
+						<div className={styles.section_title}>🔬 Source Audio & Analyse DSP (Méthode C)</div>
+						<div className={styles.section}>
+							<div className={styles.control_row}>
+								<div className={styles.control_header}>
+									<span>📡 Mode Source Audio</span>
+								</div>
+								<div className={styles.button_group}>
+									<button
+										className={`${styles.tab_btn} ${settings.audioSource === "auto" ? styles.active : ""}`}
+										onClick={() => handleAudioSourceChange("auto")}
+									>
+										⚡ Auto (Hybride)
+									</button>
+									<button
+										className={`${styles.tab_btn} ${settings.audioSource === "spotify" ? styles.active : ""}`}
+										onClick={() => handleAudioSourceChange("spotify")}
+									>
+										🟢 Spotify API
+									</button>
+									<button
+										className={`${styles.tab_btn} ${settings.audioSource === "dsp" ? styles.active : ""}`}
+										onClick={() => handleAudioSourceChange("dsp")}
+									>
+										🔬 DSP Live
+									</button>
+								</div>
+							</div>
+
+							{/* Capture Audio Live Web Audio API */}
+							<div className={styles.dsp_box}>
+								<div className={styles.dsp_status_row}>
+									<div className={`${styles.dsp_indicator} ${dspCapturing ? styles.active : ""}`}>
+										<span className={styles.dot} />
+										<span>
+											{dspCapturing
+												? "DSP Temps-Réel Actif (2048 pts FFT)"
+												: "Capture DSP Inactive"}
+										</span>
+									</div>
+									<button
+										className={`${styles.dsp_btn} ${dspCapturing ? styles.active : ""}`}
+										onClick={handleToggleDspCapture}
+									>
+										{dspCapturing ? "⏹️ Arrêter Capture" : "🎤 Démarrer Capture Live"}
+									</button>
+								</div>
+
+								{dspCapturing && (
+									<div className={styles.dsp_stats}>
+										<div className={styles.dsp_stat_pill}>
+											<span>BPM :</span>
+											<strong>{dspBpm} BPM</strong>
+										</div>
+										<div className={styles.dsp_stat_pill}>
+											<span>Kick :</span>
+											<strong>{Math.round(dspKick * 100)}%</strong>
+										</div>
+										<div className={styles.dsp_stat_pill}>
+											<span>Harmoniques :</span>
+											<strong>12 Chromas</strong>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* DSP Sensitivity Slider */}
+							<div className={styles.control_row} style={{ marginTop: "12px" }}>
+								<div className={styles.control_header}>
+									<span>🎚️ Sensibilité DSP Temps-Réel</span>
+									<span className={styles.badge}>{settings.dspSensitivity.toFixed(2)}x</span>
+								</div>
+								<input
+									type="range"
+									min="0.2"
+									max="2.5"
+									step="0.05"
+									value={settings.dspSensitivity}
+									className={styles.slider}
+									onChange={e => handleSliderChange("dspSensitivity", parseFloat(e.target.value))}
+								/>
+							</div>
 						</div>
 
 						{/* 1. SENSIVITÉS AUDIO */}
