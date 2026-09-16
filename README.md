@@ -1,10 +1,11 @@
 # 🌌 Spicetify Visualizer (v2.0)
 
-> **High-Performance Audio-Reactive Visualizer Suite for Spotify via Spicetify**  
-> _60 FPS Zero-Allocation Engine • Multi-Layered Shaders & Canvas • Dynamic Theme Palette Synchronization_
+> **Suite de Visualisation Audio-Réactive Haute Fidélité pour Spotify via Spicetify**  
+> _Rendu 60–144 FPS Zero-Allocation • Moteur DSP Stéréo Temps Réel • Pipeline Modulaire Canvas 2D • Synchronisation Dynamique des Couleurs_
 
 [![Spicetify](https://img.shields.io/badge/Spicetify-CustomApp-1db954?logo=spotify&logoColor=white)](https://spicetify.app/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Audio](https://img.shields.io/badge/Audio-Stereo%20DSP%20Loopback-purple)](#-moteur-dsp-audio-stéréo-temps-réel)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -15,128 +16,115 @@
 
 ## 📑 Sommaire / Table of Contents
 
-- [✨ Modèles de Visualisation / Visualizer Models](#-modèles-de-visualisation--visualizer-models)
-- [🌌 Effets d'Ambiance & Arrière-plan Universels](#-effets-dambiance--arrière-plan-universels)
+- [✨ Modèles de Visualisation Actifs](#-modèles-de-visualisation-actifs)
+- [🎙️ Moteur DSP Audio Stéréo Temps Réel](#️-moteur-dsp-audio-stéréo-temps-réel)
+- [🌌 Effets d'Ambiance & Arrière-Plan Universels](#-effets-dambiance--arrière-plan-universels)
 - [🎛️ Panneau d'Options & Réglages](#️-panneau-doptions--réglages)
 - [🎲 Modes Aléatoire & Chaos](#-modes-aléatoire--chaos)
 - [⚡ Architecture & Performance (0 Allocation)](#-architecture--performance-0-allocation)
-- [📦 Installation & Mise à Jour](#-installation--mise-à-jour)
+- [📦 Installation & Déploiement](#-installation--déploiement)
 - [🛠️ Développement & Commandes](#️-développement--commandes)
 
 ---
 
-## ✨ Modèles de Visualisation / Visualizer Models
+## ✨ Modèles de Visualisation Actifs
 
-Spicetify Visualizer intègre **6 modèles réactifs haute fidélité**, chacun doté d'une identité géométrique et physique propre :
+Spicetify Visualizer intègre **5 modèles réactifs haute fidélité** modulaires, détectés automatiquement au build :
 
-| Modèle                          | Description                                                                           | Spécificités & Options Dédiées                                                                                                                                                    |
-| :------------------------------ | :------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🌊 **Liquid Spectrum**          | Égaliseur spectral fluide inspiré des aurores boréales.                               | • Disposition bilatérale symétrique ou linéaire (20 Hz - 16 kHz)<br>• Échelle de hauteur d'onde paramétrable<br>• Crêtes de brume flottantes (_Aurora Mist Peaks_)                |
-| 🌸 **Astral Lotus**             | Mandala floral cosmique à pétales superposés s'épanouissant au rythme des basses.     | • 4 étages de pétales harmoniques<br>• Vitesse de rotation ajustable<br>• Inversion du sens de rotation                                                                           |
-| 🪼 **Bioluminescent Jellyfish** | Organisme marin des abysses nageant en apesanteur.                                    | • Pulsations de nage synchronisées aux drops de sub-basses<br>• Longueur et ondulation soyeuse des tentacules                                                                     |
-| 💥 **Big Bang Cosmic Origin**   | Déflagration primordiale de l'univers avec jets relativistes et singularité centrale. | • Singularité centrale avec anneaux quantiques de l'horizon<br>• 20 jets de plasma à 360° et aigrettes de diffraction<br>• Ondes d'inflation cosmologique sur basses très lourdes |
-| ☀️ **Black Sun**                | Trou noir cosmique avec disque d'accrétion et éruptions magnétiques solaires.         | • Effet de lentille gravitationnelle<br>• Couronne incandescente réactive aux transitoires                                                                                        |
-| 🌌 **Cosmic Nebula**            | Nébuleuse gazeuse interstellaire et turbulences chromatiques.                         | • Nuages de poussière volumétrique multi-couches<br>• Ondulations spectrales organiques                                                                                           |
+| Modèle                        | Description                                                                           | Spécificités & Dynamique Audio                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| :---------------------------- | :------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ☀️ **Dark Sun (Soleil Noir)** | Éclipse cosmique gravitationnelle entourée d'un spectre circulaire fluide à 360°.     | • **Spectre Circulaire Stéréo 360°** : 72 bandes avec basses à 6h, canal gauche à 9h, canal droit à 3h et aigus cristallins à 12h<br>• **Membrane de Plasma $C^1$ Spline** : onde fermée fluide sans arêtes dures ni micro-saccades<br>• **Dilatation Explosive du Disque (`sunR`)** : le cœur d'ébène gonfle jusqu'à +42% sur les kicks et propulse le spectre vers l'extérieur<br>• **Liseré de Chromosphère** : filament blanc pur et halo incandescent qui s'illuminent et s'épaississent sur le rythme |
+| 🐱 **Neon Cat (Cyber Neko)**  | Félin cyberpunk synthwave en tracé néon réactif.                                      | • Moustaches, oreilles et regard oscillant avec les transitoires et les mélodies<br>• Physique d'ondulation de la queue synchronisée aux basses<br>• Contour néon double éclat avec lueurs volumétriques                                                                                                                                                                                                                                                                                                    |
+| 🌸 **Astral Lotus**           | Mandala floral cosmique à pétales superposés s'épanouissant au rythme des basses.     | • 4 étages de pétales harmoniques géométriques<br>• Vitesse de rotation réactive au BPM<br>• Épanouissement volumétrique sur les drops                                                                                                                                                                                                                                                                                                                                                                      |
+| 💥 **Big Bang Cosmic Origin** | Déflagration primordiale de l'univers avec singularité centrale et jets relativistes. | • Singularité centrale avec anneaux quantiques de l'horizon<br>• 20 jets de plasma à 360° et aigrettes de diffraction<br>• Ondes d'inflation cosmologique sur les infrabasses                                                                                                                                                                                                                                                                                                                               |
+| 🌌 **Cosmic Nebula**          | Nébuleuse gazeuse interstellaire et turbulences chromatiques.                         | • Nuages de poussière volumétrique multi-couches<br>• Ondulations spectrales organiques et flux de particules                                                                                                                                                                                                                                                                                                                                                                                               |
+
+> _Note : D'autres modèles (ex: `Bioluminescent Jellyfish`) sont archivés dans `src/components/renderer/modes/disabled/` et peuvent être réactivés à tout moment en retirant l'extension `.disabled`._
 
 ---
 
-## 🌌 Effets d'Ambiance & Arrière-plan Universels
+## 🎙️ Moteur DSP Audio Stéréo Temps Réel
 
-Ces effets transversaux enrichissent l'arrière-plan de **tous les modèles** :
+Le visualiseur intègre une chaîne d'acquisition et d'analyse sonore ultra-rapide capable de fonctionner en synchronisation native Spotify ou en **capture DSP matérielle directe** :
+
+1. **Analyse Stéréo Discrète (`dspAudioEngine.ts`)** :
+    - Flux scindé en deux canaux indépendants via un `ChannelSplitterNode`.
+    - Deux instances `AnalyserNode` de 2048 points pour capturer la stéréo réelle (**Canal Gauche** vs **Canal Droit**).
+2. **Égalisation Acoustique Perceptive (Tilt ISO 226)** :
+    - Correction continue de **+3.2 dB par octave** relative à 1 000 Hz, compensant la perte naturelle d'énergie des aigus et égalisant la sensibilité entre sub-basses (40 Hz), voix (1-3 kHz) et charlestons (10 kHz).
+3. **AGC Dynamique Multi-Bandes (Automatic Gain Control)** :
+    - Suivi d'amplitude adaptatif avec seuil bas (-82 dB) et plafond (-6 dB).
+    - Amplification dynamique jusqu'à 5.5× : le visualiseur reste percutant et vivant quel que soit le volume de sortie Spotify (10%, 50% ou 100%).
+4. **Intégration Loopback Linux PipeWire** :
+    - Service utilisateur systemd automatisé (`spicetify-dsp-loopback.service`) créant le pont audio `Son_PC_Loopback` sans configuration manuelle.
+    - Sélection du périphérique d'entrée en un clic dans les options avec **VU-mètre en direct**, détection du BPM et indicateur de kick.
+
+---
+
+## 🌌 Effets d'Ambiance & Arrière-Plan Universels
+
+Ces couches transversales s'exécutent en arrière-plan derrière le modèle actif :
 
 1. **💥 Big Bang Cosmic Origin (Ambiance Universelle)** :
-    - **🌊 Ondes d'Inflation Cosmologique** : vagues d'expansion volumétriques déclenchées exclusivement lors des impacts de **basses très lourdes** (drops, kicks sub-basses). Seuil de déclenchement réglable (`60%` à `95%`).
-    - **🌌 Nébuleuse de Matière Primordiale** : 8 lobes de gaz nébuleux diaphane en rotation lente créant une profondeur abyssale.
-    - **✨ Poussière & Graines Stellaires** : 45 étoiles relativistes qui accélèrent et projettent des traînées de vélocité lumineuse sur chaque beat.
-2. **💥 Background Shockwave** : onde de choc d'impact douce et atmosphérique centrée optiquement.
-3. **✨ Lucioles Bioluminescentes (Fireflies)** : braises lumineuses en suspension dérivant organiquement, avec sursaut d'excitation au passage des ondes de choc.
-4. **⚡ Courant Néon (Neon Current)** : paquet d'énergie lumineuse se propageant le long de la géométrie du modèle selon la dynamique audio.
+    - **Ondes d'Inflation Cosmologique** : vagues d'expansion volumétriques déclenchées sur les basses très lourdes (seuil paramétrable de `60%` à `95%`).
+    - **Nébuleuse Primordiale** : 8 lobes de gaz diaphane créant une profondeur infinie.
+    - **Graines Stellaires Relativistes** : étoiles en suspension qui étirent des traînées de vélocité lumineuse sur les kicks.
+2. **⚡ Cyberpunk Glitch Engine** : moteur de post-traitement avec déplacement de tranches horizontales, séparation holographique RVB et lignes de balayage CRT/VHS sans allocation mémoire.
+3. **💥 Background Shockwave** : onde de choc d'impact douce et atmosphérique centrée optiquement.
+4. **✨ Lucioles Bioluminescentes (Fireflies)** : particules dérivant organiquement, excitées au passage des ondes de choc.
+5. **⚡ Courant Néon (Neon Current)** : train d'ondes lumineuses circulant le long de la géométrie du modèle actif.
 
 ---
 
 ## 🎛️ Panneau d'Options & Réglages
 
-Accessible directement depuis l'icône d'engrenage `⚙️ Options`, la fenêtre de configuration est scindée en deux espaces distincts :
+Accessible via l'icône `⚙️ Options` dans le menu Spotify :
 
-### 🌐 Onglet 1 : Options Générales (Tous les modèles)
+### 🌐 Options Générales
 
-- **🎛️ Sensibilités Audio & Physique** :
-    - _Bass Responsiveness & Punch_ : vivacité et impact percussif (`0.2x` à `2.5x`).
-    - _Sub & Bass Frequency Boost_ : amplification spécifique des fréquences graves (`0.2x` à `2.5x`).
-    - _Treble & Highs Sensitivity_ : réactivité aux cymbales et harmoniques aiguës (`0.2x` à `2.5x`).
-- **👁️ Visuel & Atmosphère** :
-    - _Vitesse d'animation_ (`0.4x` à `2.0x`)
-    - _Éclat lumineux & lueur néon_ (`0.0x` à `2.5x`)
-    - _Échelle / Zoom du visualiseur_ (`0.5x` à `1.6x`)
-    - _Assombrissement du fond Spotify_ (`0%` à `90%`)
-- **🌌 Effets d'Ambiance Globaux** :
-    - Interrupteurs et curseurs fins pour le _Big Bang en arrière-plan_, les _Lucioles_, l'_Onde de choc_ et le _Courant néon_.
-- **⏱️ Cycles & Transitions** :
-    - Intervalles temporels et sélection personnalisée des modèles autorisés en mode Aléatoire et Chaos.
-- **🎨 Couleurs & Palette Dynamique** :
-    - Mode automatique extrait de la pochette de l'album Spotify en cours.
+- **Capture DSP & Périphérique Audio** : activation du mode DSP direct, sélection du micro/loopback, VU-mètre live, BPM détecté et sensibilité DSP.
+- **Sensibilités & Balistique** : curseurs indépendants pour _Bass Scale_, _Treble Scale_, _Punch Scale_ et _Speed Scale_.
+- **Atmosphère & Rendu** : zoom global (`0.5x` à `1.6x`), intensité du glow néon (`glowScale`), assombrissement de l'arrière-plan Spotify (`0%` à `90%`).
+- **Ambiance Universelle** : interrupteurs et seuils fins pour le Big Bang d'arrière-plan, les lucioles, l'onde de choc et le courant néon.
+- **Couleurs & Thème** :
+    - Mode automatique extrait de la pochette d'album en cours.
     - Mode personnalisé avec nuancier de présélections et sélecteur de code couleur HEX.
-    - Défilement chromatique prismatique arc-en-ciel (_Rainbow Cycling_).
+    - Cycle prismatique arc-en-ciel continu (_Rainbow Cycling_).
 
-### 🎯 Onglet 2 : Options par Modèle (Spécifiques)
+### 🎯 Options par Modèle
 
-- Barre de sélection rapide avec pilules de filtrage (`[ 📑 Tous ]`, `[ 🌊 Liquid Spectrum ]`, `[ 🌸 Astral Lotus ]`, etc.).
-- Badge lumineux vert **`[En cours]`** identifiant en direct le modèle actuellement affiché à l'écran.
-- Réglages exclusifs propres à la mécanique interne de chaque modèle.
+- Barre de sélection rapide avec pilules de filtrage (`[ 📑 Tous ]`, `[ ☀️ Dark Sun ]`, `[ 🐱 Cyber Neko ]`, `[ 🌸 Astral Lotus ]`, etc.).
+- Badge lumineux vert **`[En cours]`** identifiant en direct le modèle affiché.
+- Réglages exclusifs propres à la dynamique interne de chaque modèle.
 
 ---
 
 ## 🎲 Modes Aléatoire & Chaos
 
 - **🎲 Mode Aléatoire (Random Mode)** :
-    - Alterne automatiquement les modèles selon un intervalle temporel configurable (5s à 180s).
-    - Permet de choisir via des puces cliquables quels modèles sont autorisés à entrer dans la rotation.
+    - Alterne automatiquement les modèles selon un intervalle temporel réglable (5s à 180s).
+    - Choix individuel des modèles autorisés dans la rotation.
 - **💥 Mode Chaos (Chaos Mode)** :
     - Déclenche un changement instantané de modèle lors d'un gros drop de basse.
-    - Cadence minimale anti-épilepsie paramétrable (délai de 0.6s à 5.0s entre deux changements).
-    - Pool de modèles autorisés personnalisable indépendamment du mode Aléatoire.
+    - Cadence minimale anti-épilepsie paramétrable (délai de sécurité entre deux changements).
+    - Pool de modèles personnalisable.
 
 ---
 
 ## ⚡ Architecture & Performance (0 Allocation)
 
-L'ensemble de la suite est conçu pour garantir un rendu à **60 FPS constants sans saccades** liées au ramasse-miettes (Garbage Collector) :
+Conçu pour garantir un rendu à **60–144 FPS constants sans micro-saccades** :
 
-- **Pattern Object Pool** : toutes les ondes de choc, lucioles, graines stellaires et paquets d'énergie sont alloués au démarrage dans des pools statiques réutilisables.
-- **Pattern Flyweight & Trig Tables** : mise en cache des calculs d'angles, des coordonnées circulaires et des amplitudes harmoniques.
-- **Pattern Pipeline & Strategy** : séparation modulaire de chaque étage de rendu (`RenderLayer`).
-- **Centrage Optique Automatique** : calcul géométrique adaptatif centrant le visualiseur en tenant compte des barres latérales rétractables de Spotify et du mode plein écran.
-
----
-
-## 📦 Installation & Mise à Jour
-
-### Méthode 1 : Déploiement Direct
-
-1. Ouvrez le terminal et placez-vous dans le dossier de configuration Spicetify :
-    ```bash
-    spicetify config-dir
-    ```
-2. Rendez-vous dans le sous-dossier `CustomApps/` et créez ou ouvrez le dossier `visualizer`.
-3. Téléchargez la dernière version compilée (dossier `dist/`) et déposez-y `index.js`, `index.css` et `manifest.json`.
-4. Activez l'application dans la configuration Spicetify :
-    ```bash
-    spicetify config custom_apps visualizer
-    spicetify apply
-    ```
-
-### Méthode 2 : Mise à Jour
-
-```bash
-spicetify update
-spicetify apply
-```
+- **Pattern Object Pool** : toutes les particules, ondes de choc, filaments et braises sont pré-alloués dans des pools statiques réutilisables.
+- **Pattern Flyweight & Tables Trigonométriques** : tableaux `Float32Array` pré-calculés pour les angles et coordonnées circulaires (`cosAngles`, `sinAngles`).
+- **Pattern Pipeline & Strategy** : architecture modulaire (`RenderLayer`, `DarkSunRenderPipeline`) séparant proprement chaque étape de calcul et de dessin.
+- **Centrage Optique Automatique** : compensation géométrique adaptative en temps réel tenant compte de la barre latérale de Spotify et du mode plein écran.
 
 ---
 
-## 🛠️ Développement & Commandes
+## 📦 Installation & Déploiement
 
-Pour contribuer ou modifier les visualisateurs :
+### Méthode 1 : Déploiement Local Rapide (Développeur)
 
 ```bash
 # 1. Cloner le dépôt
@@ -146,28 +134,53 @@ cd Spicetify_visualizer
 # 2. Installer les dépendances
 npm install
 
-# 3. Découverte automatique des modes (scanne src/components/renderer/modes/)
-npm run discover
-
-# 4. Compiler l'application Spicetify
-npm run build
-
-# 5. Formater le code avec Prettier
-npm run format
-
-# 6. Vérifier les types TypeScript
-npx tsc --noEmit
-
-# 7. Déployer directement dans Spotify
+# 3. Compiler et déployer dans Spotify en une seule commande
 ./apply
 ```
 
-> **Créer un nouveau modèle de visualisation :**  
-> Il suffit de créer un nouveau fichier `.ts` dans `src/components/renderer/modes/` exportant un objet `modeConfig`. Lancez ensuite `npm run discover` ou `npm run build` : le système détecte, enregistre et intègre automatiquement votre nouveau visualiseur sans modifier une seule ligne du cœur de l'application !
+### Méthode 2 : Installation Manuelle dans Spicetify
+
+1. Ouvrez le dossier des applications personnalisées :
+    ```bash
+    cd "$(spicetify -c | xargs dirname)/CustomApps"
+    ```
+2. Clonez le dépôt sous le nom `visualizer` :
+    ```bash
+    git clone https://github.com/BSourichanh/Spicetify_visualizer.git visualizer
+    cd visualizer
+    npm install
+    npm run build
+    ```
+3. Activez l'application dans Spicetify :
+    ```bash
+    spicetify config custom_apps visualizer
+    spicetify apply
+    ```
+
+---
+
+## 🛠️ Développement & Commandes
+
+```bash
+# Découverte automatique des modes (scanne src/components/renderer/modes/)
+npm run discover
+
+# Vérifier la validité des types TypeScript (0 erreur requis)
+npx tsc --noEmit
+
+# Formater tout le code source avec Prettier
+npm run format
+
+# Compiler et déployer directement dans le client Spotify
+./apply
+```
+
+> **Ajouter un nouveau modèle de visualisation :**  
+> Créez simplement un fichier `.ts` dans `src/components/renderer/modes/` exportant un objet `modeConfig`. Au prochain build ou exécution de `./apply`, le script `scripts/discover-modes.js` détecte, enregistre et intègre automatiquement votre nouveau visualiseur dans l'interface et le sélecteur !
 
 ---
 
 ## 📄 Licence
 
 Ce projet est distribué sous licence MIT.  
-Projet original basé sur NCS Visualizer par Konsl, réarchitecturé et enrichi pour Spicetify.
+Projet original inspiré de NCS Visualizer par Konsl, réarchitecturé et enrichi pour Spicetify.
