@@ -9,14 +9,26 @@ export type ExtractedFrequencyBands = {
 	vocal: number; // 800 - 3000 Hz: voix, mélodies lead, guitares/synthés
 	presence: number; // 3000 - 6000 Hz: clarté, attaque des cordes et peaux
 	treble: number; // 6000 - 16000 Hz: charlestons, cymbales, souffle
-	channels: number[]; // 36 canaux lissés pour le rendu du spectre (0.0 à 1.0)
-	peaks: number[]; // 36 crêtes flottantes
+	channels: number[]; // 36 canaux lissés mix mono (0.0 à 1.0)
+	peaks: number[]; // 36 crêtes flottantes mix mono
+	channelsLeft: number[]; // 36 canaux stéréo gauche
+	channelsRight: number[]; // 36 canaux stéréo droite
+	peaksLeft: number[]; // 36 crêtes flottantes gauche
+	peaksRight: number[]; // 36 crêtes flottantes droite
 };
 
 const NUM_CHANNELS = 36;
 const smoothedChannels: number[] = new Array(NUM_CHANNELS).fill(0.04);
+const smoothedChannelsLeft: number[] = new Array(NUM_CHANNELS).fill(0.04);
+const smoothedChannelsRight: number[] = new Array(NUM_CHANNELS).fill(0.04);
+
 const peaks: number[] = new Array(NUM_CHANNELS).fill(0.04);
+const peaksLeft: number[] = new Array(NUM_CHANNELS).fill(0.04);
+const peaksRight: number[] = new Array(NUM_CHANNELS).fill(0.04);
+
 const peakVelocities: number[] = new Array(NUM_CHANNELS).fill(0);
+const peakVelocitiesLeft: number[] = new Array(NUM_CHANNELS).fill(0);
+const peakVelocitiesRight: number[] = new Array(NUM_CHANNELS).fill(0);
 let lastTimestamp = 0;
 
 /**
@@ -44,7 +56,11 @@ export function extractFrequencyBands(
 			presence: 0,
 			treble: 0,
 			channels: [...smoothedChannels],
-			peaks: [...peaks]
+			peaks: [...peaks],
+			channelsLeft: [...smoothedChannelsLeft],
+			channelsRight: [...smoothedChannelsRight],
+			peaksLeft: [...peaksLeft],
+			peaksRight: [...peaksRight]
 		};
 	}
 
@@ -221,28 +237,64 @@ export function extractFrequencyBands(
 	const attackRate = 1.0 - Math.exp(-safeDt * 28.0);
 	const releaseRate = 1.0 - Math.exp(-safeDt * 7.5);
 
-	// Si le moteur DSP est actif, échantillonner directement le spectre FFT 2048 points
+	// Si le moteur DSP est actif, échantillonner directement le spectre FFT 2048 points en stéréo
 	if (dspAudioEngine.isActive()) {
-		dspAudioEngine.fillSpectrumChannels(smoothedChannels, NUM_CHANNELS);
+		dspAudioEngine.fillSpectrumStereo(smoothedChannelsLeft, smoothedChannelsRight, NUM_CHANNELS);
+		for (let i = 0; i < NUM_CHANNELS; i++) {
+			smoothedChannels[i] = (smoothedChannelsLeft[i] + smoothedChannelsRight[i]) * 0.5;
+		}
 	} else {
 		for (let i = 0; i < NUM_CHANNELS; i++) {
 			const target = targetChannels[i];
+			// Moduler légèrement gauche / droite pour créer de la largeur stéréo naturelle même sans DSP
+			const stereoDiff = Math.sin(progress * 2.5 + i * 0.4) * 0.12 * (i > 8 ? 1.0 : 0.35);
+			const targetL = Math.max(0.03, Math.min(1.0, target * (1.0 - stereoDiff)));
+			const targetR = Math.max(0.03, Math.min(1.0, target * (1.0 + stereoDiff)));
+
 			if (target > smoothedChannels[i]) {
 				smoothedChannels[i] += (target - smoothedChannels[i]) * attackRate;
 			} else {
 				smoothedChannels[i] += (target - smoothedChannels[i]) * releaseRate;
 			}
+			if (targetL > smoothedChannelsLeft[i]) {
+				smoothedChannelsLeft[i] += (targetL - smoothedChannelsLeft[i]) * attackRate;
+			} else {
+				smoothedChannelsLeft[i] += (targetL - smoothedChannelsLeft[i]) * releaseRate;
+			}
+			if (targetR > smoothedChannelsRight[i]) {
+				smoothedChannelsRight[i] += (targetR - smoothedChannelsRight[i]) * attackRate;
+			} else {
+				smoothedChannelsRight[i] += (targetR - smoothedChannelsRight[i]) * releaseRate;
+			}
 		}
 	}
 
 	for (let i = 0; i < NUM_CHANNELS; i++) {
-		// Crêtes flottantes (floating peaks)
+		// Crêtes flottantes mono
 		if (smoothedChannels[i] > peaks[i]) {
 			peaks[i] = smoothedChannels[i];
 			peakVelocities[i] = 0;
 		} else {
 			peakVelocities[i] += safeDt * 0.65;
 			peaks[i] = Math.max(0.02, peaks[i] - peakVelocities[i] * safeDt);
+		}
+
+		// Crêtes flottantes gauche
+		if (smoothedChannelsLeft[i] > peaksLeft[i]) {
+			peaksLeft[i] = smoothedChannelsLeft[i];
+			peakVelocitiesLeft[i] = 0;
+		} else {
+			peakVelocitiesLeft[i] += safeDt * 0.65;
+			peaksLeft[i] = Math.max(0.02, peaksLeft[i] - peakVelocitiesLeft[i] * safeDt);
+		}
+
+		// Crêtes flottantes droite
+		if (smoothedChannelsRight[i] > peaksRight[i]) {
+			peaksRight[i] = smoothedChannelsRight[i];
+			peakVelocitiesRight[i] = 0;
+		} else {
+			peakVelocitiesRight[i] += safeDt * 0.65;
+			peaksRight[i] = Math.max(0.02, peaksRight[i] - peakVelocitiesRight[i] * safeDt);
 		}
 	}
 
@@ -254,6 +306,10 @@ export function extractFrequencyBands(
 		presence,
 		treble,
 		channels: [...smoothedChannels],
-		peaks: [...peaks]
+		peaks: [...peaks],
+		channelsLeft: [...smoothedChannelsLeft],
+		channelsRight: [...smoothedChannelsRight],
+		peaksLeft: [...peaksLeft],
+		peaksRight: [...peaksRight]
 	};
 }

@@ -190,14 +190,15 @@ export class DarkSunPhysicsEngine {
 		}
 
 		this.smoothBass += (bass - this.smoothBass) * 0.15;
-		this.smoothPunch += (punch - this.smoothPunch) * 0.22;
+		const punchAttack = punch > this.smoothPunch ? 0.65 : 0.18;
+		this.smoothPunch += (punch - this.smoothPunch) * punchAttack;
 		this.smoothTreble += (treble - this.smoothTreble) * 0.2;
 
-		const isKick = punch > 0.35 || (bass > 0.6 && transient > 0.32);
+		const isKick = punch > 0.28 || (bass > 0.55 && transient > 0.25);
 		if (isKick) {
-			this.solarFlare = Math.min(2.5, this.solarFlare + punch * 0.9 + transient * 0.5);
+			this.solarFlare = Math.min(3.0, this.solarFlare + punch * 1.2 + transient * 0.6);
 		}
-		this.solarFlare *= 0.92;
+		this.solarFlare *= 0.88;
 
 		const speed = (1.0 + this.solarFlare * 0.35 + this.smoothBass * 0.3) * speedScale;
 		this.timeFlow += 0.016 * speed;
@@ -233,16 +234,21 @@ class BackgroundHaloLayer implements RenderLayer {
 		ctx.save();
 		ctx.translate(frame.cx, frame.cy);
 
-		const grad = ctx.createRadialGradient(0, 0, frame.sunR * 0.9, 0, 0, frame.maxCoronaR);
-		const alpha = 0.38 + frame.smoothBass * 0.28 + frame.solarFlare * 0.2;
-		grad.addColorStop(0, frame.palette.rimVeil(alpha * 0.7));
-		grad.addColorStop(0.25, frame.palette.veil(alpha * 0.45));
-		grad.addColorStop(0.65, frame.palette.veil(alpha * 0.15));
+		const settings = getVisualizerSettings();
+		const punchScale = settings.punchScale ?? 1.0;
+		const punchBoost = (frame.smoothPunch * 0.45 + frame.solarFlare * 0.28) * punchScale;
+		const haloR = frame.maxCoronaR * (1.0 + punchBoost + frame.smoothBass * 0.18);
+		const grad = ctx.createRadialGradient(0, 0, frame.sunR * 0.95, 0, 0, haloR);
+		// Opacité ambiante constante (ne s'amplifie pas sur les kicks)
+		const alpha = 0.38;
+		grad.addColorStop(0, frame.palette.rimVeil(alpha * 0.75));
+		grad.addColorStop(0.25, frame.palette.veil(alpha * 0.5));
+		grad.addColorStop(0.62, frame.palette.veil(alpha * 0.18));
 		grad.addColorStop(1, "transparent");
 
 		ctx.fillStyle = grad;
 		ctx.beginPath();
-		ctx.arc(0, 0, frame.maxCoronaR, 0, Math.PI * 2);
+		ctx.arc(0, 0, haloR, 0, Math.PI * 2);
 		ctx.fill();
 
 		ctx.restore();
@@ -311,20 +317,23 @@ class RadialAudioSpectrumLayer implements RenderLayer {
 	private readonly cosAngles = new Float32Array(RadialAudioSpectrumLayer.NUM_RAYS);
 	private readonly sinAngles = new Float32Array(RadialAudioSpectrumLayer.NUM_RAYS);
 	private readonly channelMap = new Uint8Array(RadialAudioSpectrumLayer.NUM_RAYS);
+	private readonly pointsX = new Float32Array(RadialAudioSpectrumLayer.NUM_RAYS);
+	private readonly pointsY = new Float32Array(RadialAudioSpectrumLayer.NUM_RAYS);
 
 	constructor() {
-		// Répartition symétrique à 360° :
-		// 0 rad (pôle bas) = basses/infrabasses
-		// Flancs latéraux = médiums / voix
-		// Pôle haut = aigus / air cristallin
+		// Répartition symétrique bilatérale à 360° :
+		// Pôle bas (6h) = basses/infrabasses
+		// Flanc gauche (9h) & Flanc droit (3h) = médiums / voix / mélodies
+		// Pôle haut (12h) = aigus / air cristallin
+		const baseAngle = Math.PI / 2; // 90° (pôle bas)
 		for (let i = 0; i < RadialAudioSpectrumLayer.NUM_RAYS; i++) {
-			const angle = (i / RadialAudioSpectrumLayer.NUM_RAYS) * Math.PI * 2;
+			const angle = baseAngle + (i / RadialAudioSpectrumLayer.NUM_RAYS) * Math.PI * 2;
 			this.cosAngles[i] = Math.cos(angle);
 			this.sinAngles[i] = Math.sin(angle);
 
-			const half = RadialAudioSpectrumLayer.NUM_RAYS / 2;
-			const idxInHalf = i < half ? i : RadialAudioSpectrumLayer.NUM_RAYS - i;
-			this.channelMap[i] = Math.min(35, Math.floor((idxInHalf / half) * 36));
+			// Hémisphère gauche (i: 0 -> 35) : basses (ch 0) vers aigus (ch 35)
+			// Hémisphère droit (i: 36 -> 71) : aigus (ch 35) vers basses (ch 0)
+			this.channelMap[i] = i < 36 ? i : 71 - i;
 		}
 	}
 
@@ -339,84 +348,68 @@ class RadialAudioSpectrumLayer implements RenderLayer {
 		} catch {}
 
 		const freqBands = extractFrequencyBands(analysis, progress, features);
-		const channels = freqBands.channels;
-		const peaks = freqBands.peaks;
+		const channelsLeft = freqBands.channelsLeft;
+		const channelsRight = freqBands.channelsRight;
 
-		const maxSpectrumH = baseR * 0.82 * (1.0 + frame.smoothBass * 0.35);
+		const dspSens = settings.dspSensitivity ?? 1.0;
+		// Distance maximale d'excursion calibrée
+		const maxSpectrumH = baseR * 1.3 * (1.0 + frame.smoothBass * 0.25);
 
 		ctx.save();
 		ctx.translate(cx, cy);
 
-		// 1. Enveloppe fluide continue de la couronne de spectre
-		ctx.beginPath();
+		// 1. Calcul des sommets spectraux stéréo : minimum calé au soleil, sensibilité équilibrée
+		const noiseFloor = 0.04;
+		const trebleScale = settings.trebleScale ?? 1.0;
 		for (let i = 0; i < RadialAudioSpectrumLayer.NUM_RAYS; i++) {
 			const ch = this.channelMap[i];
-			const val = channels[ch] || 0.04;
-			const r = sunR + val * maxSpectrumH;
-			const x = this.cosAngles[i] * r;
-			const y = this.sinAngles[i] * r;
+			const isLeft = i < 36;
+			const rawVal = isLeft ? channelsLeft[ch] || 0.0 : channelsRight[ch] || 0.0;
+			// Compensation des hautes fréquences progressive et naturelle
+			const trebleBoost = 1.0 + Math.pow(ch / 35, 1.2) * 0.55 * trebleScale;
+			const boostedVal = rawVal * trebleBoost;
+			// Soustraction du plancher de bruit pour une base stable
+			const dynamicVal = Math.max(0, (boostedVal - noiseFloor) / (1.0 - noiseFloor));
+			const val = Math.min(1.0, Math.pow(dynamicVal, 0.95) * 1.05 * dspSens);
+			const r = sunR + 14 + val * maxSpectrumH;
 
-			if (i === 0) {
-				ctx.moveTo(x, y);
-			} else {
-				ctx.lineTo(x, y);
-			}
+			this.pointsX[i] = this.cosAngles[i] * r;
+			this.pointsY[i] = this.sinAngles[i] * r;
+		}
+
+		// 2. Enveloppe de plasma fluide continue (Spline fermée C1 sans arrêtes dures)
+		ctx.beginPath();
+		const lastI = RadialAudioSpectrumLayer.NUM_RAYS - 1;
+		const startMidX = (this.pointsX[lastI] + this.pointsX[0]) * 0.5;
+		const startMidY = (this.pointsY[lastI] + this.pointsY[0]) * 0.5;
+		ctx.moveTo(startMidX, startMidY);
+
+		for (let i = 0; i < RadialAudioSpectrumLayer.NUM_RAYS; i++) {
+			const nextI = (i + 1) % RadialAudioSpectrumLayer.NUM_RAYS;
+			const midX = (this.pointsX[i] + this.pointsX[nextI]) * 0.5;
+			const midY = (this.pointsY[i] + this.pointsY[nextI]) * 0.5;
+			ctx.quadraticCurveTo(this.pointsX[i], this.pointsY[i], midX, midY);
 		}
 		ctx.closePath();
-		ctx.lineWidth = 2.0 * glowScale;
-		ctx.strokeStyle = palette.rimVeil(0.75 + frame.smoothPunch * 0.25);
+
+		// Halo néon extérieur
+		ctx.lineWidth = 3.2 * glowScale;
+		ctx.strokeStyle = palette.rimVeil(0.9 + frame.smoothPunch * 0.1);
 		ctx.shadowColor = palette.highlight;
-		ctx.shadowBlur = 10 * glowScale;
+		ctx.shadowBlur = 18 * glowScale;
 		ctx.stroke();
 
-		// Remplissage tamisé de l'espace spectral
-		ctx.fillStyle = palette.veil(0.12 + frame.smoothBass * 0.1);
-		ctx.fill();
-
-		// 2. Rayons / Barres spectrales émergeant du limbe solaire
+		// Liseré intérieur blanc incandescent
+		ctx.lineWidth = 1.3 * glowScale;
+		ctx.strokeStyle = "#ffffff";
+		ctx.shadowColor = palette.highlight;
+		ctx.shadowBlur = 6 * glowScale;
+		ctx.stroke();
 		ctx.shadowBlur = 0;
-		for (let i = 0; i < RadialAudioSpectrumLayer.NUM_RAYS; i++) {
-			const ch = this.channelMap[i];
-			const val = channels[ch] || 0.04;
-			const peakVal = peaks[ch] || val;
 
-			const barLen = val * maxSpectrumH;
-			const rStart = sunR;
-			const rEnd = sunR + barLen;
-
-			const cos = this.cosAngles[i];
-			const sin = this.sinAngles[i];
-
-			// Rayon spectral
-			ctx.beginPath();
-			ctx.moveTo(cos * rStart, sin * rStart);
-			ctx.lineTo(cos * rEnd, sin * rEnd);
-			ctx.lineWidth = (2.2 + val * 2.5) * glowScale;
-			ctx.strokeStyle = palette.veil(0.35 + val * 0.65);
-			ctx.stroke();
-
-			// Filament blanc haute intensité
-			if (val > 0.4) {
-				ctx.beginPath();
-				ctx.moveTo(cos * (rStart + barLen * 0.5), sin * (rStart + barLen * 0.5));
-				ctx.lineTo(cos * rEnd, sin * rEnd);
-				ctx.lineWidth = 1.0;
-				ctx.strokeStyle = "#ffffff";
-				ctx.stroke();
-			}
-
-			// Crête flottante (Peak dot)
-			const peakR = sunR + peakVal * maxSpectrumH + 3;
-			if (peakR > rEnd + 2) {
-				ctx.beginPath();
-				ctx.arc(cos * peakR, sin * peakR, (1.2 + peakVal * 1.6) * glowScale, 0, Math.PI * 2);
-				ctx.fillStyle = "#ffffff";
-				ctx.shadowColor = palette.highlight;
-				ctx.shadowBlur = 4 * glowScale;
-				ctx.fill();
-				ctx.shadowBlur = 0;
-			}
-		}
+		// Remplissage tamisé et fluide de l'espace spectral
+		ctx.fillStyle = palette.veil(0.18 + frame.smoothBass * 0.15);
+		ctx.fill();
 
 		ctx.restore();
 	}
@@ -474,26 +467,27 @@ class ChromosphereCoreLayer implements RenderLayer {
 		ctx.save();
 		ctx.translate(cx, cy);
 
-		// 1. Anneau de Chromosphère incandescente (Limb Glow)
-		const limbGrad = ctx.createRadialGradient(0, 0, sunR * 0.94, 0, 0, sunR * (1.18 + smoothBass * 0.12));
-		const limbAlpha = 0.75 + smoothBass * 0.25 + solarFlare * 0.25;
+		// 1. Anneau de Chromosphère incandescente (Limb Glow) - S'épanouit et s'illumine sur le kick
+		const limbOuterR = sunR * (1.08 + smoothPunch * 0.14 + smoothBass * 0.05);
+		const limbGrad = ctx.createRadialGradient(0, 0, sunR * 0.97, 0, 0, limbOuterR);
+		const limbAlpha = Math.min(1.0, 0.82 + smoothPunch * 0.35 + smoothBass * 0.15 + solarFlare * 0.25);
 		limbGrad.addColorStop(0, palette.rimLight);
 		limbGrad.addColorStop(0.35, palette.highlight);
-		limbGrad.addColorStop(0.7, palette.rimVeil(limbAlpha * 0.8));
+		limbGrad.addColorStop(0.75, palette.rimVeil(limbAlpha * 0.7));
 		limbGrad.addColorStop(1, "transparent");
 
 		ctx.fillStyle = limbGrad;
 		ctx.beginPath();
-		ctx.arc(0, 0, sunR * (1.18 + smoothBass * 0.12), 0, Math.PI * 2);
+		ctx.arc(0, 0, limbOuterR, 0, Math.PI * 2);
 		ctx.fill();
 
-		// 2. Filament de bordure blanc pur (Limb Razor Line)
+		// 2. Filament de bordure blanc pur (Limb Razor Line) - Claque et s'épaissit sur le kick
 		ctx.beginPath();
 		ctx.arc(0, 0, sunR, 0, Math.PI * 2);
-		ctx.lineWidth = 1.8 + smoothPunch * 2.2;
+		ctx.lineWidth = 1.4 + smoothPunch * 3.2;
 		ctx.strokeStyle = "#ffffff";
 		ctx.shadowColor = palette.highlight;
-		ctx.shadowBlur = 10;
+		ctx.shadowBlur = 8 + smoothPunch * 18;
 		ctx.stroke();
 		ctx.shadowBlur = 0;
 
@@ -571,7 +565,12 @@ export function drawDarkSun(
 	);
 
 	const baseR = Math.min(width, height) * 0.36;
-	const sunR = baseR * 0.52 * (1.0 + engine.smoothBass * 0.06 - engine.smoothPunch * 0.02);
+	const punchScale = settings.punchScale ?? 1.0;
+	const bassScale = settings.bassScale ?? 1.0;
+	// Dilatation dynamique du Soleil Noir sur les kicks et impacts de basse
+	const kickInflation =
+		(engine.smoothPunch * 0.32 + engine.solarFlare * 0.12 + engine.smoothBass * 0.08 * bassScale) * punchScale;
+	const sunR = baseR * 0.52 * (1.0 + kickInflation);
 	const maxCoronaR = Math.max(baseR * 2.2, Math.max(width, height) * 0.65);
 
 	const frameContext: DarkSunFrameContext = {

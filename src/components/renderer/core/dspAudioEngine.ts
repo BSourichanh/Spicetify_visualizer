@@ -41,6 +41,9 @@ export class DspAudioEngine {
 	// Web Audio Nodes
 	private audioCtx: AudioContext | null = null;
 	private analyserNode: AnalyserNode | null = null;
+	private splitterNode: ChannelSplitterNode | null = null;
+	private analyserLeft: AnalyserNode | null = null;
+	private analyserRight: AnalyserNode | null = null;
 	private mediaStream: MediaStream | null = null;
 	private sourceNode: MediaStreamAudioSourceNode | null = null;
 
@@ -59,13 +62,19 @@ export class DspAudioEngine {
 	private runningPeakKick = 0.15;
 	private runningPeakMid = 0.15;
 	private runningPeakTreble = 0.1;
+	private runningSpectrumPeak = 0.35;
 
 	// Buffers pré-alloués (0 allocation par frame)
 	private static readonly FFT_SIZE = 2048;
 	private static readonly BIN_COUNT = DspAudioEngine.FFT_SIZE / 2; // 1024 bins
 	private readonly timeData = new Float32Array(DspAudioEngine.FFT_SIZE);
 	private readonly freqData = new Float32Array(DspAudioEngine.BIN_COUNT);
+	private readonly freqDataLeft = new Float32Array(DspAudioEngine.BIN_COUNT);
+	private readonly freqDataRight = new Float32Array(DspAudioEngine.BIN_COUNT);
 	private readonly prevFreqData = new Float32Array(DspAudioEngine.BIN_COUNT);
+	private readonly rawSpectrumL = new Float32Array(128);
+	private readonly rawSpectrumR = new Float32Array(128);
+	private readonly tempRightChannels: number[] = new Array(128).fill(0.04);
 	private readonly chromaAccumulator = new Float32Array(12);
 	private readonly smoothedChroma = new Float32Array(12);
 	private readonly binToChromaMap = new Int8Array(DspAudioEngine.BIN_COUNT);
@@ -168,7 +177,8 @@ export class DspAudioEngine {
 			const audioConstraints: MediaTrackConstraints = {
 				echoCancellation: false,
 				noiseSuppression: false,
-				autoGainControl: false
+				autoGainControl: false,
+				channelCount: 2
 			};
 			if (deviceId) {
 				audioConstraints.deviceId = { exact: deviceId };
@@ -196,11 +206,32 @@ export class DspAudioEngine {
 			this.sourceNode = this.audioCtx.createMediaStreamSource(stream);
 			this.sourceNode.connect(this.analyserNode);
 
+			// Séparation stéréo native (Canaux gauche et droit indépendants)
+			try {
+				this.splitterNode = this.audioCtx.createChannelSplitter(2);
+				this.analyserLeft = this.audioCtx.createAnalyser();
+				this.analyserLeft.fftSize = DspAudioEngine.FFT_SIZE;
+				this.analyserLeft.smoothingTimeConstant = 0.35;
+
+				this.analyserRight = this.audioCtx.createAnalyser();
+				this.analyserRight.fftSize = DspAudioEngine.FFT_SIZE;
+				this.analyserRight.smoothingTimeConstant = 0.35;
+
+				this.sourceNode.connect(this.splitterNode);
+				this.splitterNode.connect(this.analyserLeft, 0);
+				this.splitterNode.connect(this.analyserRight, 1);
+			} catch (e) {
+				console.warn("[DSP Engine] Impossible d'initialiser le splitter stéréo:", e);
+				this.splitterNode = null;
+				this.analyserLeft = null;
+				this.analyserRight = null;
+			}
+
 			this.isCapturing = true;
 			this.result.isActive = true;
 			this.result.sampleRate = this.audioCtx.sampleRate;
 			console.info(
-				"[DSP Engine] Capture audio démarrée avec succès. Device:",
+				"[DSP Engine] Capture audio démarrée avec succès (Stéréo). Device:",
 				deviceId || "default",
 				"Sample rate:",
 				this.audioCtx.sampleRate
@@ -224,6 +255,18 @@ export class DspAudioEngine {
 		if (this.sourceNode) {
 			this.sourceNode.disconnect();
 			this.sourceNode = null;
+		}
+		if (this.splitterNode) {
+			this.splitterNode.disconnect();
+			this.splitterNode = null;
+		}
+		if (this.analyserLeft) {
+			this.analyserLeft.disconnect();
+			this.analyserLeft = null;
+		}
+		if (this.analyserRight) {
+			this.analyserRight.disconnect();
+			this.analyserRight = null;
 		}
 		if (this.audioCtx) {
 			this.audioCtx.close().catch(() => {});
@@ -461,38 +504,123 @@ export class DspAudioEngine {
 	}
 
 	/**
-	 * Échantillonne 36 canaux de spectre logarithmiques directement depuis la FFT DSP 2048 points
+	 * Échantillonne le spectre en véritable stéréo (Canal Gauche & Canal Droit)
+	 * avec AGC dynamique multi-bandes et égalisation acoustique perceptive (Tilt +3.2 dB/oct).
 	 */
-	public fillSpectrumChannels(target: number[], count = 36): void {
+	public fillSpectrumStereo(leftTarget: number[], rightTarget: number[], count = 36): void {
 		if (!this.isCapturing || !this.analyserNode) return;
+
+		// 1. Extraction des spectres fréquentiels FFT
+		if (this.analyserLeft && this.analyserRight) {
+			this.analyserLeft.getFloatFrequencyData(this.freqDataLeft);
+			this.analyserRight.getFloatFrequencyData(this.freqDataRight);
+		} else {
+			this.analyserNode.getFloatFrequencyData(this.freqData);
+			this.freqDataLeft.set(this.freqData);
+			this.freqDataRight.set(this.freqData);
+		}
 
 		const sampleRate = this.audioCtx?.sampleRate ?? 44100;
 		const binWidth = sampleRate / DspAudioEngine.FFT_SIZE;
 		const minFreq = 25;
 		const maxFreq = 16000;
-		const logMin = Math.log10(minFreq);
-		const logMax = Math.log10(maxFreq);
+		const safeCount = Math.min(count, 128);
+		const logRatio = Math.log(maxFreq / minFreq);
 
-		for (let i = 0; i < count; i++) {
-			const fStart = Math.pow(10, logMin + (i / count) * (logMax - logMin));
-			const fEnd = Math.pow(10, logMin + ((i + 1) / count) * (logMax - logMin));
+		// 2. Première passe : Extraction des magnitudes par bande et recherche du pic de trame
+		let frameMax = 0;
+
+		for (let i = 0; i < safeCount; i++) {
+			const fStart = minFreq * Math.exp((i / safeCount) * logRatio);
+			const fEnd = minFreq * Math.exp(((i + 1) / safeCount) * logRatio);
+			const fCenter = Math.sqrt(fStart * fEnd);
 
 			const bStart = Math.max(1, Math.floor(fStart / binWidth));
 			const bEnd = Math.min(DspAudioEngine.BIN_COUNT - 1, Math.ceil(fEnd / binWidth));
 
-			let maxMag = 0;
+			// Égalisation perceptive calibrée :
+			// Les basses ont une forte concentration d'énergie (-6 à -18 dBFS).
+			// Les aigus sont naturellement atténués et diffus (-35 à -65 dBFS).
+			// Pente calibrée : +4.8 dB par octave au-dessus de 800 Hz pour réveiller les cymbales et charlestons
+			const octavesFrom800 = Math.log2(fCenter / 800);
+			const tiltDb = octavesFrom800 >= 0 ? octavesFrom800 * 4.8 : octavesFrom800 * 2.2;
+			const tiltWeight = Math.pow(10, tiltDb / 20);
+
+			let maxMagL = 0;
+			let avgMagL = 0;
+			let maxMagR = 0;
+			let avgMagR = 0;
+			let binCount = 0;
+
 			for (let b = bStart; b <= bEnd; b++) {
-				const db = this.freqData[b];
-				if (db > -80) {
-					const mag = Math.pow(10, (db + 6) / 20);
-					if (mag > maxMag) maxMag = mag;
+				const dbL = this.freqDataLeft[b];
+				const dbR = this.freqDataRight[b];
+
+				if (dbL > -88) {
+					// Fenêtre de dynamique logarithmique : étire la sensibilité des sons fins (-80 dBFS à -6 dBFS)
+					const normL = Math.max(0, Math.min(1.0, (dbL + 82) / 76));
+					const magL = Math.pow(normL, 1.8);
+					if (magL > maxMagL) maxMagL = magL;
+					avgMagL += magL;
 				}
+				if (dbR > -88) {
+					const normR = Math.max(0, Math.min(1.0, (dbR + 82) / 76));
+					const magR = Math.pow(normR, 1.8);
+					if (magR > maxMagR) maxMagR = magR;
+					avgMagR += magR;
+				}
+				binCount++;
 			}
 
-			const trebleComp = 1.0 + (i / count) * 1.8;
-			const targetVal = Math.max(0.04, Math.min(1.0, maxMag * 2.6 * trebleComp));
-			const prev = target[i] || 0.04;
-			target[i] = prev + (targetVal - prev) * (targetVal > prev ? 0.65 : 0.22);
+			if (binCount > 0) {
+				avgMagL /= binCount;
+				avgMagR /= binCount;
+			}
+
+			// Hybride crête (attaque nette) et masse spectrale (puissance harmonique)
+			const rawL = (maxMagL * 0.72 + avgMagL * 0.28) * tiltWeight;
+			const rawR = (maxMagR * 0.72 + avgMagR * 0.28) * tiltWeight;
+
+			this.rawSpectrumL[i] = rawL;
+			this.rawSpectrumR[i] = rawR;
+
+			if (rawL > frameMax) frameMax = rawL;
+			if (rawR > frameMax) frameMax = rawR;
+		}
+
+		// 3. Suiveur de crête AGC adaptatif haute sensibilité
+		if (frameMax > this.runningSpectrumPeak) {
+			this.runningSpectrumPeak += (frameMax - this.runningSpectrumPeak) * 0.35;
+		} else {
+			this.runningSpectrumPeak += (frameMax - this.runningSpectrumPeak) * 0.018;
+		}
+		this.runningSpectrumPeak = Math.max(0.04, Math.min(2.0, this.runningSpectrumPeak));
+
+		// Gain dynamique normalisé avec sensibilité accrue
+		const agcGain = Math.max(1.0, Math.min(5.5, 1.18 / this.runningSpectrumPeak));
+
+		// 4. Deuxième passe : Application du gain et balistique analogique
+		for (let i = 0; i < safeCount; i++) {
+			const targetValL = Math.max(0.03, Math.min(1.0, this.rawSpectrumL[i] * agcGain));
+			const targetValR = Math.max(0.03, Math.min(1.0, this.rawSpectrumR[i] * agcGain));
+
+			const prevL = leftTarget[i] || 0.03;
+			const prevR = rightTarget[i] || 0.03;
+
+			leftTarget[i] = prevL + (targetValL - prevL) * (targetValL > prevL ? 0.75 : 0.22);
+			rightTarget[i] = prevR + (targetValR - prevR) * (targetValR > prevR ? 0.75 : 0.22);
+		}
+	}
+
+	/**
+	 * Échantillonne le spectre en mix mono (moyenne stéréophonique)
+	 */
+	public fillSpectrumChannels(target: number[], count = 36): void {
+		if (!this.isCapturing || !this.analyserNode) return;
+
+		this.fillSpectrumStereo(target, this.tempRightChannels, count);
+		for (let i = 0; i < count; i++) {
+			target[i] = (target[i] + this.tempRightChannels[i]) * 0.5;
 		}
 	}
 }
